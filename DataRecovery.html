@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Recovery</title>
+
+    <!-- Same fonts and icons as VideoStudio-V3.html -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- DESIGN SYSTEM: the tokens of VideoStudio-V3.html --- */
+        :root {
+            --primaryColor: #2596be;
+            --secondaryColor: #5bc1da;
+            --tertiaryColor: #666666;
+            --quaternaryColor: #ebeaea;
+            --darkColor: #000000;
+            --lightColor: #ffffff;
+            --customColor: #0a78c1;
+            --shadowPrimary: 0 4px 8px rgba(20, 71, 108, 0.15);
+
+            --fontHeading: 'Playfair Display', serif;
+            --fontBody: 'Inter', sans-serif;
+
+            /* page shades derived from the brand blues */
+            --ink: #0d2b3a;
+            --mist: #e8f5fa;
+            --okGreen: #1d8a56;
+            --warnAmber: #b7791f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 62.5%;
+            /* 1rem = 10px, as in the parent page */
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--fontBody);
+            font-size: 1.5rem;
+            color: var(--ink);
+            background-color: #f1f5f9;
+        }
+
+        code {
+            font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+            font-size: 0.92em;
+            background: var(--mist);
+            padding: 0.1rem 0.5rem;
+            border-radius: 0.4rem;
+        }
+
+        /* --- HERO --- */
+        .hero {
+            background:
+                radial-gradient(60rem 40rem at 85% 15%, rgba(91, 193, 218, 0.35), transparent 70%),
+                linear-gradient(160deg, var(--lightColor) 0%, var(--mist) 100%);
+            padding: 5rem max(2.4rem, env(safe-area-inset-right, 0px)) 4.4rem max(2.4rem, env(safe-area-inset-left, 0px));
+        }
+
+        .hero-inner,
+        .section-inner {
+            max-width: 112rem;
+            margin: 0 auto;
+        }
+
+        .hero-inner {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--primaryColor);
+            margin: 0 0 1.6rem;
+        }
+
+        .hero h1 {
+            font-family: var(--fontHeading);
+            font-size: clamp(3.2rem, 5vw, 5.2rem);
+            line-height: 1.08;
+            margin: 0 0 2rem;
+            text-wrap: balance;
+        }
+
+        .hero h1 .accent {
+            color: var(--primaryColor);
+        }
+
+        .lead {
+            font-size: 1.8rem;
+            line-height: 1.6;
+            color: #36515f;
+            max-width: 54rem;
+            margin: 0 0 3rem;
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-bottom: 2.4rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.3rem 2.2rem;
+            border-radius: 0.8rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.15s, background-color 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--primaryColor);
+            color: var(--lightColor);
+            box-shadow: var(--shadowPrimary);
+        }
+
+        .btn-primary:hover {
+            background: var(--customColor);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--lightColor);
+            color: var(--primaryColor);
+            border: 1px solid rgba(37, 150, 190, 0.35);
+        }
+
+        .btn-secondary:hover {
+            background: var(--mist);
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid var(--secondaryColor);
+            outline-offset: 2px;
+        }
+
+        .hint {
+            font-size: 1.3rem;
+            color: var(--tertiaryColor);
+            margin: 0;
+        }
+
+        /* --- ILLUSTRATION: a recovery job in the app's stage-timeline style --- */
+        .job-card {
+            background: var(--lightColor);
+            border-radius: 1.6rem;
+            box-shadow: 0 30px 60px rgba(13, 43, 58, 0.18);
+            overflow: hidden;
+        }
+
+        .job-head {
+            background: var(--primaryColor);
+            color: var(--lightColor);
+            padding: 1.4rem 1.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .job-head small {
+            font-weight: 500;
+            opacity: 0.9;
+            font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+            font-size: 1.15rem;
+        }
+
+        .stages {
+            list-style: none;
+            margin: 0;
+            padding: 1.6rem 1.8rem 1.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.6rem;
+        }
+
+        .stage-top {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.7rem;
+        }
+
+        .stage-top i {
+            width: 3.2rem;
+            height: 3.2rem;
+            border-radius: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--mist);
+            color: var(--primaryColor);
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .stage-name {
+            flex: 1;
+            min-width: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+        }
+
+        .stage-name span {
+            display: block;
+            font-weight: 400;
+            font-size: 1.2rem;
+            color: var(--tertiaryColor);
+        }
+
+        .state {
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0.3rem 0.8rem;
+            border-radius: 99rem;
+            white-space: nowrap;
+        }
+
+        .state.done {
+            color: var(--okGreen);
+            background: #e1f3e8;
+        }
+
+        .state.running {
+            color: var(--customColor);
+            background: var(--mist);
+        }
+
+        .track {
+            height: 0.8rem;
+            border-radius: 99rem;
+            background: #e4ecf0;
+            overflow: hidden;
+        }
+
+        .track div {
+            height: 100%;
+            border-radius: 99rem;
+            background: var(--secondaryColor);
+        }
+
+        .track div.done {
+            background: var(--okGreen);
+        }
+
+        .stage-detail {
+            margin-top: 0.5rem;
+            font-size: 1.15rem;
+            color: var(--tertiaryColor);
+        }
+
+        .sample-note {
+            margin: 1rem 0 0;
+            text-align: right;
+            font-size: 1.1rem;
+            color: var(--tertiaryColor);
+        }
+
+        /* --- FACT STRIP --- */
+        .facts {
+            background: var(--ink);
+            color: var(--lightColor);
+            padding: 2.4rem max(2.4rem, env(safe-area-inset-right, 0px)) 2.4rem max(2.4rem, env(safe-area-inset-left, 0px));
+        }
+
+        .facts .section-inner {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 2rem;
+        }
+
+        .fact strong {
+            display: block;
+            font-family: var(--fontHeading);
+            font-size: 2.6rem;
+            color: var(--secondaryColor);
+            line-height: 1.1;
+        }
+
+        .fact span {
+            font-size: 1.3rem;
+            opacity: 0.85;
+        }
+
+        /* --- SECTIONS --- */
+        .section {
+            padding: 4.4rem max(2.4rem, env(safe-area-inset-right, 0px)) 4.4rem max(2.4rem, env(safe-area-inset-left, 0px));
+        }
+
+        .section.white {
+            background: var(--lightColor);
+        }
+
+        .section h2 {
+            font-family: var(--fontHeading);
+            font-size: 3rem;
+            margin: 0 0 0.8rem;
+        }
+
+        .section .intro {
+            margin: 0 0 3rem;
+            color: #4a6371;
+            max-width: 64rem;
+            line-height: 1.6;
+        }
+
+        .steps {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 2.4rem;
+            counter-reset: step;
+        }
+
+        .steps li {
+            background: var(--lightColor);
+            border-radius: 1.2rem;
+            padding: 2.2rem;
+            box-shadow: var(--shadowPrimary);
+            counter-increment: step;
+        }
+
+        .steps li::before {
+            content: counter(step);
+            display: inline-flex;
+            width: 3.2rem;
+            height: 3.2rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--primaryColor);
+            color: var(--lightColor);
+            font-weight: 700;
+            margin-bottom: 1.4rem;
+        }
+
+        .steps h3,
+        .features h3 {
+            font-family: var(--fontHeading);
+            font-size: 1.9rem;
+            margin: 0 0 0.6rem;
+        }
+
+        .steps p,
+        .features p {
+            margin: 0;
+            line-height: 1.55;
+            color: #4a6371;
+        }
+
+        .tool {
+            display: inline-block;
+            margin-top: 1.2rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primaryColor);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 2.4rem;
+        }
+
+        .feature {
+            display: flex;
+            gap: 1.4rem;
+            align-items: flex-start;
+        }
+
+        .feature>i {
+            flex-shrink: 0;
+            width: 4.4rem;
+            height: 4.4rem;
+            border-radius: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--mist);
+            color: var(--primaryColor);
+            font-size: 1.9rem;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 860px) {
+
+            .hero-inner,
+            .steps,
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .facts .section-inner {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-inner">
+            <div>
+                <p class="eyebrow"><i class="fa-solid fa-compact-disc" aria-hidden="true"></i>Video Studio V3 · Data Recovery</p>
+                <h1 id="hero-title">Get your files back from <span class="accent">damaged discs and formatted pen drives</span></h1>
+                <p class="lead">Video Studio images the failing drive first, then carves every recoverable file from
+                    that image. The source is only ever read, never repaired in place, so nothing degrades while you
+                    work.</p>
+                <div class="cta-row">
+                    <a class="btn btn-primary" href="http://127.0.0.1:8080/" target="_blank" rel="noopener">
+                        <i class="fa-solid fa-play" aria-hidden="true"></i>
+                        Open Video Studio
+                    </a>
+                    <a class="btn btn-secondary" href="#how-it-works">
+                        <i class="fa-solid fa-route" aria-hidden="true"></i>
+                        How recovery works
+                    </a>
+                </div>
+                <p class="hint">Start the backend first with <code>start_studio.bat</code>; it runs on this PC only.</p>
+            </div>
+
+            <div aria-hidden="true">
+                <div class="job-card">
+                    <div class="job-head">Recovery job <small>/dev/sdb → pendrive_backup.img</small></div>
+                    <ol class="stages">
+                        <li>
+                            <div class="stage-top">
+                                <i class="fa-solid fa-hard-drive"></i>
+                                <div class="stage-name">Imaging raw sectors<span>ddrescue · 512-byte sectors</span></div>
+                                <span class="state done">Completed</span>
+                            </div>
+                            <div class="track"><div class="done" style="width: 100%"></div></div>
+                            <div class="stage-detail">rescued 14.6 GB · read errors 3</div>
+                        </li>
+                        <li>
+                            <div class="stage-top">
+                                <i class="fa-solid fa-table-list"></i>
+                                <div class="stage-name">Partition analysis<span>TestDisk · read-only</span></div>
+                                <span class="state done">Completed</span>
+                            </div>
+                            <div class="track"><div class="done" style="width: 100%"></div></div>
+                            <div class="stage-detail">FAT32 partition found</div>
+                        </li>
+                        <li>
+                            <div class="stage-top">
+                                <i class="fa-solid fa-scissors"></i>
+                                <div class="stage-name">Carving files<span>PhotoRec · paranoid, whole space</span></div>
+                                <span class="state running">62%</span>
+                            </div>
+                            <div class="track"><div style="width: 62%"></div></div>
+                            <div class="stage-detail">1,284 files carved so far · ETA 18 min</div>
+                        </li>
+                    </ol>
+                </div>
+                <p class="sample-note">Illustration with example values</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="facts" aria-label="At a glance">
+        <div class="section-inner">
+            <div class="fact"><strong>Image first</strong><span>The source drive is only read</span></div>
+            <div class="fact"><strong>3 stages</strong><span>ddrescue → TestDisk → PhotoRec</span></div>
+            <div class="fact"><strong>163 tests</strong><span>Run on Windows and Linux on every push</span></div>
+            <div class="fact"><strong>4.0 / 5</strong><span>Latest architecture review (V3)</span></div>
+        </div>
+    </section>
+
+    <section class="section" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-inner">
+            <h2 id="how-title">How recovery works</h2>
+            <p class="intro">One click runs all three stages as a single job, with live progress, a cancel that
+                keeps your work, and a resumable image if anything stops it.</p>
+            <ol class="steps">
+                <li>
+                    <h3>Image the drive</h3>
+                    <p>Every readable sector is copied to an image file, then damaged areas are retried. A mapfile
+                        records progress, so an interrupted run picks up where it stopped.</p>
+                    <span class="tool">ddrescue · 2048-byte sectors for discs, 512 for pen drives</span>
+                </li>
+                <li>
+                    <h3>Analyse partitions</h3>
+                    <p>The image's partition table is read without changing anything. TestDisk can also restore
+                        original file names for deleted files whose entries survive.</p>
+                    <span class="tool">TestDisk · read-only analysis</span>
+                </li>
+                <li>
+                    <h3>Carve the files</h3>
+                    <p>Files are found by their signatures across the whole image, even after a quick format reset
+                        the file table. Pick types such as images, videos, PDF or Office to skip the noise.</p>
+                    <span class="tool">PhotoRec · paranoid, whole space</span>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="section white" aria-labelledby="safe-title">
+        <div class="section-inner">
+            <h2 id="safe-title">Built to protect what you recover</h2>
+            <p class="intro">The data is often irreplaceable and every extra read wears a failing disc, so the app
+                refuses risky actions instead of trying them.</p>
+            <div class="features">
+                <div class="feature">
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                    <div>
+                        <h3>Safe by design</h3>
+                        <p>One tool per image at a time, a free-space check before imaging, and an image is never
+                            resumed from a different disc.</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <i class="fa-solid fa-film" aria-hidden="true"></i>
+                    <div>
+                        <h3>Video tools included</h3>
+                        <p>Repair carved videos, then cut, join or transcode them, with cancel at any time and the
+                            NVIDIA encoder when available.</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <div>
+                        <h3>Stays on this PC</h3>
+                        <p>The backend only listens on this computer and every request needs a per-launch token.
+                            Nothing is uploaded anywhere.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+
+</html>
