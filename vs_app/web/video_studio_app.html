@@ -1,0 +1,2587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Cut, Join &amp; Recovery Studio | RTX 3050 NVENC + WSL2</title>
+  <script>
+    window.__VS_TOKEN__ = "__API_TOKEN_PLACEHOLDER__";
+    window.__VS_VERSION__ = "__APP_VERSION__";
+  </script>
+  
+  <!-- Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  
+  <!-- Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  
+  <style>
+    :root {
+      --primary: #2596be;
+      --secondary: #5bc1da;
+      --accent: #38bdf8;
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --ff-heading: "Playfair Display", serif;
+      --ff-body: "Inter", sans-serif;
+      --ff-code: "JetBrains Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--ff-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1.5rem 2rem;
+    }
+
+    .header-content {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .title-area h1 {
+      font-family: var(--ff-heading);
+      font-size: 2.4rem;
+      color: var(--secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .title-area p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.3rem;
+    }
+
+    .badge-container {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: rgba(37, 150, 190, 0.15);
+      border: 1px solid var(--primary);
+      color: var(--accent);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .badge.gpu {
+      border-color: #10b981;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    /* Main Layout */
+    .app-body {
+      max-width: 1300px;
+      margin: 2rem auto;
+      width: 100%;
+      padding: 0 1.5rem;
+      flex: 1;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid var(--card-border);
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 1rem 1.5rem;
+      font-family: var(--ff-body);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--secondary);
+      border-bottom-color: var(--secondary);
+    }
+
+    /* Module Cards */
+    .module-pane {
+      display: none;
+    }
+
+    .module-pane.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.8rem;
+      padding: 1.8rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .card h2 {
+      font-size: 1.4rem;
+      color: var(--secondary);
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 0.8rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.4rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.8rem 1rem;
+      border-radius: 0.5rem;
+      font-family: var(--ff-body);
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--secondary);
+    }
+
+    .form-control-code {
+      font-family: var(--ff-code);
+    }
+
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.8rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+    }
+
+    .radio-label:hover {
+      border-color: var(--primary);
+    }
+
+    .carve-types {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .carve-type {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      font-size: 0.88rem;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.5rem 0.8rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .carve-type:hover {
+      border-color: var(--primary);
+    }
+
+    .carve-type:has(input:checked) {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .carve-type input {
+      accent-color: var(--primary);
+    }
+
+    .rprog {
+      margin-top: 0.8rem;
+      padding: 0.7rem 0.8rem;
+      border-radius: 0.5rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+    }
+
+    .rprog-row + .rprog-row {
+      margin-top: 0.7rem;
+    }
+
+    .rprog-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .rprog-pct {
+      font-family: var(--ff-code);
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .rprog-track {
+      height: 0.75rem;
+      border-radius: 999px;
+      background: #1e293b;
+      overflow: hidden;
+    }
+
+    .rprog-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      transition: width 0.6s ease;
+    }
+
+    .rprog-row[data-state="running"] .rprog-fill {
+      background-image: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 8px, transparent 8px 16px);
+      background-blend-mode: overlay;
+      background-size: 100% 100%, 32px 32px;
+      animation: rprog-stripes 1s linear infinite;
+    }
+
+    .rprog-row[data-state="completed"] .rprog-fill, .rprog-row[data-state="done"] .rprog-fill { background: var(--success); }
+    .rprog-row[data-state="completed"] .rprog-pct, .rprog-row[data-state="done"] .rprog-pct { color: var(--success); }
+    .rprog-row[data-state="partial"] .rprog-fill { background: var(--warning); }
+    .rprog-row[data-state="partial"] .rprog-pct { color: var(--warning); }
+    .rprog-row[data-state="cancelled"] .rprog-fill { background: #f59e0b; }
+    .rprog-row[data-state="failed"] .rprog-fill, .rprog-row[data-state="error"] .rprog-fill { background: var(--danger); }
+    .rprog-row[data-state="skipped"], .rprog-row[data-state="off"], .rprog-row[data-state="pending"] { opacity: 0.55; }
+
+    @keyframes rprog-stripes {
+      from { background-position: 0 0, 0 0; }
+      to { background-position: 0 0, 32px 0; }
+    }
+
+    .rprog-detail {
+      font-family: var(--ff-code);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+      min-height: 1em;
+    }
+
+    .stage-timeline {
+      display: flex;
+      align-items: flex-start;
+      margin: 0 0 0.9rem;
+    }
+
+    .stage-node {
+      position: relative;
+      flex: 1 1 0;
+      min-width: 0;
+      padding-top: 1.45rem;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .stage-node::before {
+      content: '';
+      position: absolute;
+      top: 0.45rem;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #1e293b;
+    }
+
+    .stage-node:first-child::before { left: 50%; }
+    .stage-node:last-child::before { right: 50%; }
+
+    .stage-dot {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      background: #0f172a;
+      border: 2px solid #334155;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      line-height: 1;
+      z-index: 1;
+    }
+
+    .stage-node[data-state="running"] .stage-dot {
+      border-color: var(--primary);
+      background: var(--primary);
+      animation: stage-pulse 1.6s ease-in-out infinite;
+    }
+
+    .stage-node[data-state="completed"] .stage-dot,
+    .stage-node[data-state="done"] .stage-dot { border-color: var(--success); background: var(--success); }
+    .stage-node[data-state="partial"] .stage-dot { border-color: var(--warning); background: var(--warning); }
+    .stage-node[data-state="cancelled"] .stage-dot { border-color: #f59e0b; background: #f59e0b; }
+    .stage-node[data-state="failed"] .stage-dot,
+    .stage-node[data-state="error"] .stage-dot { border-color: var(--danger); background: var(--danger); }
+    .stage-node[data-state="skipped"] .stage-dot,
+    .stage-node[data-state="off"] .stage-dot,
+    .stage-node[data-state="pending"] .stage-dot { opacity: 0.4; }
+
+    .stage-name {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stage-state {
+      display: block;
+      font-family: var(--ff-code);
+      font-size: 0.68rem;
+      margin-top: 0.1rem;
+    }
+
+    .stage-node[data-state="running"] .stage-state { color: var(--primary); }
+    .stage-node[data-state="completed"] .stage-state,
+    .stage-node[data-state="done"] .stage-state { color: var(--success); }
+    .stage-node[data-state="partial"] .stage-state { color: var(--warning); }
+    .stage-node[data-state="failed"] .stage-state,
+    .stage-node[data-state="error"] .stage-state { color: var(--danger); }
+
+    @keyframes stage-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14); }
+      50% { box-shadow: 0 0 0 7px rgba(56, 189, 248, 0.05); }
+    }
+
+    .radio-label input[type="radio"] {
+      accent-color: var(--primary);
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: #000000;
+      font-weight: 700;
+      border: none;
+      padding: 0.9rem 1.8rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-family: var(--ff-body);
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      width: 100%;
+    }
+
+    .btn[hidden] {
+      display: none;
+    }
+
+    .btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 150, 190, 0.3);
+    }
+
+    .btn-action {
+      background: rgba(37, 150, 190, 0.15);
+      border: 1px solid var(--primary);
+      color: var(--secondary);
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+      text-decoration: none;
+      white-space: nowrap;
+      font-family: var(--ff-body);
+    }
+
+    .btn-action:hover {
+      background: var(--primary);
+      color: #000;
+      transform: translateY(-1px);
+    }
+
+    .btn-action.btn-upload {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: #10b981;
+      color: #34d399;
+    }
+
+    .btn-action.btn-upload:hover {
+      background: #10b981;
+      color: #fff;
+    }
+
+    .file-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.35rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.8rem;
+      font-family: var(--ff-code);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .file-chip:hover {
+      background: rgba(91, 193, 218, 0.15);
+      border-color: var(--secondary);
+      color: var(--secondary);
+    }
+
+    /* Terminal Output Box */
+    .terminal-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 0.8rem;
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+
+    .terminal-header {
+      background: #111827;
+      padding: 0.6rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .terminal-title {
+      font-family: var(--ff-code);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .copy-btn {
+      background: var(--card-border);
+      color: var(--text-main);
+      border: none;
+      padding: 0.3rem 0.8rem;
+      border-radius: 0.3rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--primary);
+      color: #000;
+    }
+
+    .terminal-content {
+      padding: 1.2rem;
+      font-family: var(--ff-code);
+      font-size: 0.9rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    /* File List Items */
+    .file-list {
+      list-style: none;
+      margin-top: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .file-item {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      padding: 0.6rem 1rem;
+      border-radius: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--ff-code);
+      font-size: 0.85rem;
+    }
+
+    .remove-file {
+      color: var(--danger);
+      cursor: pointer;
+      font-weight: bold;
+      padding: 0.2rem 0.5rem;
+    }
+
+    /* Footer */
+    footer {
+      background: #090d16;
+      border-top: 1px solid var(--card-border);
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="title-area">
+        <h1>🎬 Video Cut, Join &amp; Recovery Studio</h1>
+        <p>Lossless Video Trimming, MPEG-2 Concatenation, CD/DVD + Pen Drive Recovery (ddrescue + PhotoRec) &amp; RTX 3050 NVENC Acceleration</p>
+      </div>
+      <div class="badge-container">
+        <span class="badge gpu">⚡ RTX 3050 NVENC Active</span>
+        <span class="badge">🐧 WSL2 Ubuntu</span>
+        <span class="badge">💿 ddrescue 1.27</span>
+        <span class="badge">💾 PhotoRec Carving</span>
+        <span class="badge">🎞️ HandBrakeCLI</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Body -->
+  <main class="app-body">
+    
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('cut-tab')">✂️ Cut &amp; Trim Video</button>
+      <button class="tab-btn" onclick="switchTab('join-tab')">🔗 Join &amp; Concatenate</button>
+      <button class="tab-btn" onclick="switchTab('ddrescue-tab')">💿💾 CD/DVD &amp; Pen Drive Recovery</button>
+      <button class="tab-btn" onclick="switchTab('nvenc-tab')">⚡ Transcode (HandBrake NVENC)</button>
+      <button class="tab-btn" onclick="switchTab('terminal-tab')">📜 Backend Server &amp; Commands</button>
+    </nav>
+
+    <!-- Tab 1: Cut & Trim -->
+    <div id="cut-tab" class="module-pane active">
+      <div class="grid-2">
+        <!-- Configuration Card -->
+        <div class="card">
+          <h2>✂️ Video Trimming Settings</h2>
+          
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="margin-bottom: 0;">Input Video File Path:</label>
+              <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn-action" onclick="browseInputFileNative()" title="Launch native Windows File Explorer to select any video file with full path">
+                  📁 Select File (Native Explorer)
+                </button>
+              </div>
+            </div>
+            <input type="text" id="cut-input" class="form-control form-control-code" value="C:\Recovery\main_video.vob" placeholder="e.g. C:\Users\admin\Desktop\2.Repository.mp4">
+            
+            <!-- Quick Workspace Video Selector & Status -->
+            <div id="file-picker-feedback" style="margin-top: 0.4rem; font-size: 0.82rem; font-family: var(--ff-code); color: var(--secondary); display: none;"></div>
+            <div id="workspace-videos-container" style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;">
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Quick Pick:</span>
+              <span class="file-chip" onclick="selectWorkspaceVideo('1.Github-Vscode.mp4')" title="Select 1.Github-Vscode.mp4 in workspace">
+                🎬 1.Github-Vscode.mp4 (23.7 MB)
+              </span>
+              <span class="file-chip" onclick="refreshWorkspaceVideos()" title="Scan for videos in workspace">
+                🔄 Scan Workspace
+              </span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="margin-bottom: 0;">Output Video File Path:</label>
+              <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn-action" onclick="browseOutputFileNative()" title="Select custom destination directory and filename via Windows Save dialog">
+                  📁 Select Destination (Save As)
+                </button>
+                <button type="button" class="btn-action" onclick="promptCustomOutputName()" title="Edit output file name">
+                  ✏️ Change File Name
+                </button>
+                <button type="button" class="btn-action" onclick="resetDynamicOutputPath()" title="Reset to auto-generated path with Trimmed_ name">
+                  🔄 Reset Dynamic Name
+                </button>
+              </div>
+            </div>
+            <input type="text" id="cut-output" class="form-control form-control-code" value="C:\Recovery\Trimmed_main_video.mp4" placeholder="e.g. C:\Users\admin\Desktop\Trimmed_2.Repository.mp4">
+            <div id="output-picker-feedback" style="margin-top: 0.4rem; font-size: 0.82rem; font-family: var(--ff-code); color: var(--secondary); display: none;"></div>
+          </div>
+
+          <div style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex: 1;">
+              <label>Start Time (IN):</label>
+              <input type="text" id="cut-start" class="form-control form-control-code" value="00:05:00" placeholder="HH:MM:SS">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label>End Time (OUT):</label>
+              <input type="text" id="cut-end" class="form-control form-control-code" value="00:25:30" placeholder="HH:MM:SS">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Trimming Engine &amp; Processing Mode:</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="cut-mode" value="copy" checked>
+                <div>
+                  <strong>⚡ Instant Lossless Stream Copy (Recommended)</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">0% Quality Loss • Completes in &lt; 5 seconds without re-encoding</div>
+                </div>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="cut-mode" value="nvenc">
+                <div>
+                  <strong>🚀 NVIDIA RTX 3050 NVENC Re-encode (HEVC H.265)</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Frame-accurate cut • Hardware H.265 10-bit compression</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Target Execution Environment:</label>
+            <select id="cut-env" class="form-control form-control-code" onchange="generateCutCommand()">
+              <option value="windows" selected>Windows Command Prompt / PowerShell (ffmpeg)</option>
+              <option value="wsl">WSL2 Ubuntu Subsystem (wsl ffmpeg / /mnt/c/...)</option>
+            </select>
+          </div>
+
+          <button class="btn" onclick="generateCutCommand()">🚀 Generate Cut Command</button>
+        </div>
+
+        <!-- Preview & Output Terminal -->
+        <div class="card">
+          <h2>💻 Generated Command Telemetry</h2>
+          <p style="font-size: 0.9rem; color: var(--text-muted);">The command below uses FFmpeg stream copy logic to extract your exact video segment:</p>
+          
+          <div class="terminal-box">
+            <div class="terminal-header">
+              <span class="terminal-title">SHELL COMMAND / SUBPROCESS CALL</span>
+              <button class="copy-btn" onclick="copyTerminal('cut-terminal')">Copy Command</button>
+            </div>
+            <div id="cut-terminal" class="terminal-content">ffmpeg -y -ss 00:05:00 -to 00:25:30 -i "C:\Recovery\main_video.vob" -c copy "C:\Recovery\trimmed_output.mp4"</div>
+          </div>
+
+          <div style="margin-top: 1rem; display: flex; gap: 0.8rem;">
+            <button class="btn" style="background: linear-gradient(135deg, var(--success) 0%, #059669 100%); color: #fff;" onclick="runCutApi()">▶ Run Cut via Backend Server</button>
+          </div>
+          <div id="cut-api-status" style="margin-top: 0.8rem; font-family: var(--ff-code); font-size: 0.85rem; display: none;"></div>
+          <button id="cut-cancel" class="btn btn-action" style="margin-top: 0.6rem;" hidden onclick="cancelMedia(this)">⏹️ Cancel cut</button>
+
+          <div style="margin-top: 1.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--success); font-weight: bold; font-size: 0.9rem;">✔ Next Step: Execution Options</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">
+              <strong>1. Automatic:</strong> Click "▶ Run Cut via Backend Server" above if <code>python video_studio_backend.py</code> is running.<br>
+              <strong>2. Manual:</strong> Click "Copy Command", paste into PowerShell / Command Prompt, and press Enter.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Join & Concatenate -->
+    <div id="join-tab" class="module-pane">
+      <div class="grid-2">
+        <div class="card">
+          <h2>🔗 Join &amp; Merge Multiple Clips</h2>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="margin-bottom: 0;">Add Video File Segment Path:</label>
+              <button type="button" class="btn-action" onclick="browseJoinFileInputNative()" title="Select video file segment using Windows Explorer">
+                📁 Browse Segment
+              </button>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="join-file-input" class="form-control form-control-code" value="C:\Recovery\VTS_01_1.VOB" placeholder="e.g. C:\Recovery\VTS_01_1.VOB">
+              <button class="btn" style="width: auto; padding: 0 1.2rem;" onclick="addJoinFile()">+ Add</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Current Segments to Join (Sequential Order):</label>
+            <ul id="join-file-list" class="file-list">
+              <li class="file-item">
+                <span>C:\Recovery\VTS_01_1.VOB</span>
+                <span class="remove-file" onclick="removeJoinFile(this)">✖</span>
+              </li>
+              <li class="file-item">
+                <span>C:\Recovery\VTS_01_2.VOB</span>
+                <span class="remove-file" onclick="removeJoinFile(this)">✖</span>
+              </li>
+              <li class="file-item">
+                <span>C:\Recovery\VTS_01_3.VOB</span>
+                <span class="remove-file" onclick="removeJoinFile(this)">✖</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="margin-bottom: 0;">Merged Output Destination Path:</label>
+              <button type="button" class="btn-action" onclick="browseJoinOutputNative()" title="Select merged output destination via Windows Save dialog">
+                📁 Select Destination (Save As)
+              </button>
+            </div>
+            <input type="text" id="join-output" class="form-control form-control-code" value="C:\Recovery\main_video.vob">
+          </div>
+
+          <div class="form-group">
+            <label>Joining Mechanism:</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="join-mode" value="vob_copy" checked>
+                <div>
+                  <strong>Bitwise Concatenation (cmd /c copy /b)</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Best for DVD MPEG-2 raw VOB chunks. Fixes DVD menu crashes.</div>
+                </div>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="join-mode" value="ffmpeg_concat">
+                <div>
+                  <strong>FFmpeg Concat Demuxer (-f concat -c copy)</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Instant lossless merge for MP4, MKV, or AVI clips with identical codecs.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <button class="btn" onclick="generateJoinCommand()">🔗 Generate Join Command</button>
+        </div>
+
+        <div class="card">
+          <h2>💻 Join Telemetry &amp; Instructions</h2>
+
+          <div class="terminal-box">
+            <div class="terminal-header">
+              <span class="terminal-title">CMD / SHELL CONCATENATION COMMAND</span>
+              <button class="copy-btn" onclick="copyTerminal('join-terminal')">Copy Command</button>
+            </div>
+            <div id="join-terminal" class="terminal-content">cmd /c copy /b C:\Recovery\VTS_01_1.VOB + C:\Recovery\VTS_01_2.VOB + C:\Recovery\VTS_01_3.VOB C:\Recovery\main_video.vob</div>
+          </div>
+
+          <div style="margin-top: 1rem; display: flex; gap: 0.8rem;">
+            <button class="btn" style="background: linear-gradient(135deg, var(--success) 0%, #059669 100%); color: #fff;" onclick="runJoinApi()">▶ Run Join via Backend Server</button>
+          </div>
+          <div id="join-api-status" style="margin-top: 0.8rem; font-family: var(--ff-code); font-size: 0.85rem; display: none;"></div>
+          <button id="join-cancel" class="btn btn-action" style="margin-top: 0.6rem;" hidden onclick="cancelMedia(this)">⏹️ Cancel join</button>
+
+          <div style="margin-top: 1.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--success); font-weight: bold; font-size: 0.9rem;">✔ Next Step: Execution Options</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">
+              <strong>1. Automatic:</strong> Click "▶ Run Join via Backend Server" above if <code>python video_studio_backend.py</code> is running.<br>
+              <strong>2. Manual:</strong> Click "Copy Command", paste into Command Prompt / PowerShell, and press Enter.
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--accent); font-weight: bold; font-size: 0.9rem;">💡 Navigation Packet Bypass Pattern</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">
+              When recovered ISOs have corrupted <code>VIDEO_TS.IFO</code> tables, joining VOB chunks bitwise produces a continuous stream that HandBrake parses without NAV packet crashes.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: CD/DVD + Pen Drive Recovery (ddrescue + PhotoRec) -->
+    <div id="ddrescue-tab" class="module-pane">
+      <div class="grid-2">
+        <div class="card">
+          <h2>💿💾 Drive Recovery — CD/DVD &amp; Pen Drive</h2>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label style="margin-bottom: 0;">Recovery Target Device (Linux path in WSL2):</label>
+              <button type="button" class="btn-action" onclick="detectDrives()" title="Ask the backend for optical + USB drives currently attached to WSL2">🔄 Detect Drives</button>
+            </div>
+            <select id="rescue-device" class="form-control form-control-code" onchange="onRescueDeviceChange()">
+              <option value="/dev/sdb" selected>💾 /dev/sdb — Pen drive / USB flash (example — click Detect Drives)</option>
+              <option value="/dev/sr0">💿 /dev/sr0 — Optical drive (CD/DVD)</option>
+            </select>
+            <div id="rescue-drive-info" style="margin-top: 0.4rem; font-size: 0.82rem; font-family: var(--ff-code); color: var(--secondary); display: none;"></div>
+            <div id="rescue-bind-row" style="margin-top: 0.5rem; display: none; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.82rem; color: var(--warning);"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Output Raw Image Path (save to the PC — NEVER back onto the drive being recovered):</label>
+            <input type="text" id="rescue-output" class="form-control form-control-code" value="/mnt/c/PendriveRecovery/pendrive_backup.img">
+          </div>
+
+          <div class="form-group">
+            <label>Sector Size:</label>
+            <select id="rescue-sector" class="form-control form-control-code">
+              <option value="auto" selected>Auto — 2048B optical / 512B pen drive (recommended)</option>
+              <option value="512">512 bytes — standard USB flash / HDD</option>
+              <option value="2048">2048 bytes — CD/DVD optical</option>
+              <option value="4096">4096 bytes — 4Kn advanced format</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Recovery Scraping Mode:</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="rescue-mode" value="normal" checked>
+                <div>
+                  <strong>Normal Recovery — full multi-pass + 3 retries</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Pen drive: <code>-b 512 -r 3 -v</code> · Optical: <code>-b 2048 -n -v</code> (fast, laser-preserving pass).</div>
+                </div>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="rescue-mode" value="aggressive">
+                <div>
+                  <strong>Aggressive Recovery — direct I/O + 5 retries</strong>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Pen drive: <code>-b 512 -d -r 5 -v</code> · Optical: <code>-b 2048 -d -r 5 -R -v</code> (reverse scraping for scratched discs).</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="radio-label" style="display: flex; gap: 0.6rem; align-items: flex-start;">
+              <input type="checkbox" id="rescue-carve" checked style="margin-top: 0.3rem;">
+              <div>
+                <strong>Carve ALL files with PhotoRec after imaging (required for formatted drives)</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Scripted run: <code>options,keep_corrupted_file,paranoid,fileopt,everything,enable,wholespace,search</code> — signature scan of the whole image space; recovers photos/videos/documents even when the file table is gone. <strong>Uncheck for 2-step mode:</strong> image now, then carve manually later with "🧩 Step 2: Start Carving".</div>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>🗂️ File types to carve <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(applies to Run Full Recovery and Step 2)</span></label>
+            <div class="carve-types" id="carve-types">
+              <label class="carve-type"><input type="checkbox" value="all" checked> 🌐 All file types</label>
+              <label class="carve-type" title="jpg, png, gif, bmp, tif, psd, ico, pcx, xcf, emf, wmf + camera RAW (dng, nef, cr2, arw, crw, orf, raf, rw2, mrw, x3f)"><input type="checkbox" value="images"> 🖼️ Images (all types)</label>
+              <label class="carve-type" title="mp4, mov, 3gp, m4v, avi, mkv, mpg, wmv, flv, m2ts, wtv, dv"><input type="checkbox" value="videos"> 🎬 Videos</label>
+              <label class="carve-type" title="pdf"><input type="checkbox" value="pdf"> 📕 PDF</label>
+              <label class="carve-type" title="doc, docx, docm, dot, dotx"><input type="checkbox" value="word"> 📘 Word (.doc / .docx)</label>
+              <label class="carve-type" title="xls, xlsx, xlsm, xlt, xltx"><input type="checkbox" value="excel"> 📗 Excel (.xls / .xlsx)</label>
+              <label class="carve-type" title="ppt, pptx, pptm, pps, ppsx"><input type="checkbox" value="powerpoint"> 📙 PowerPoint (.ppt / .pptx)</label>
+            </div>
+            <div id="carve-types-hint" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+          </div>
+
+          <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem;">
+            <button class="btn" onclick="runRecovery()">🚀 Run Full Recovery (Image + Carve)</button>
+            <button class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff;" onclick="runCarveOnly()">🧩 Step 2: Start Carving (from image)</button>
+            <button class="btn btn-action" onclick="generateRescueCommands()">📄 Generate Manual Commands</button>
+            <button class="btn btn-action" onclick="launchTestDisk()">🛠️ Open TestDisk (original names)</button>
+            <button class="btn btn-action" onclick="cancelRecovery()">⏹️ Cancel</button>
+            <button class="btn btn-action" onclick="openRecoveryFolder()">📂 Open Recovery Folder</button>
+            <button class="btn" style="background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); color: #fff;" onclick="runVideoRepair()">🔧 Repair &amp; Salvage Videos</button>
+          </div>
+
+          <div id="recovery-progress" class="rprog" style="display: none;">
+            <div id="stage-timeline" class="stage-timeline" style="display: none;"></div>
+            <div class="rprog-row" id="rprog-imaging" data-state="pending">
+              <div class="rprog-head"><span>🔍 Step 1 — Imaging (ddrescue)</span><span class="rprog-pct">—</span></div>
+              <div class="rprog-track"><div class="rprog-fill"></div></div>
+              <div class="rprog-detail"></div>
+            </div>
+            <div class="rprog-row" id="rprog-carving" data-state="pending">
+              <div class="rprog-head"><span>🧩 Step 2 — Carving (PhotoRec)</span><span class="rprog-pct">—</span></div>
+              <div class="rprog-track"><div class="rprog-fill"></div></div>
+              <div class="rprog-detail"></div>
+            </div>
+            <div class="rprog-row" id="rprog-repair" data-state="pending" style="display: none;">
+              <div class="rprog-head"><span>🔧 Step 3 — Repair &amp; Salvage (ffmpeg)</span><span class="rprog-pct">—</span></div>
+              <div class="rprog-track"><div class="rprog-fill"></div></div>
+              <div class="rprog-detail"></div>
+            </div>
+          </div>
+
+          <div id="recovery-status" style="display: none; margin-top: 0.8rem; padding: 0.7rem; border-radius: 0.5rem; background: #0f172a; border: 1px solid var(--card-border); font-family: var(--ff-code); font-size: 0.85rem; white-space: pre-wrap;"></div>
+        </div>
+
+        <div class="card">
+          <h2>💻 Live Recovery Console &amp; Manual WSL2 Commands</h2>
+
+          <div class="terminal-box">
+            <div class="terminal-header">
+              <span class="terminal-title">LIVE BACKEND RECOVERY LOG</span>
+              <button class="copy-btn" onclick="copyTerminal('recovery-live-terminal')">Copy Log</button>
+            </div>
+            <div id="recovery-live-terminal" class="terminal-content" style="max-height: 220px; overflow-y: auto;">Idle. Click "🚀 Run Full Recovery" to start (requires backend on port 8080 + WSL2). Tip: uncheck the carve option for 2-step mode — image now, then "🧩 Step 2: Start Carving".</div>
+          </div>
+
+          <div class="terminal-box" style="margin-top: 1rem;">
+            <div class="terminal-header">
+              <span class="terminal-title">STAGE 1 — DDRESCUE RAW IMAGING (WSL2)</span>
+              <button class="copy-btn" onclick="copyTerminal('rescue-terminal')">Copy Command</button>
+            </div>
+            <div id="rescue-terminal" class="terminal-content">ddrescue -b 512 -r 3 -v /dev/sdb /mnt/c/PendriveRecovery/pendrive_backup.img /mnt/c/PendriveRecovery/pendrive_backup.img.log</div>
+          </div>
+
+          <div class="terminal-box" style="margin-top: 1rem;">
+            <div class="terminal-header">
+              <span class="terminal-title">STAGE 2 — PHOTOREC FILE CARVING (WSL2)</span>
+              <button class="copy-btn" onclick="copyTerminal('photorec-terminal')">Copy Command</button>
+            </div>
+            <div id="photorec-terminal" class="terminal-content">photorec /log /d "/mnt/c/PendriveRecovery/carved" /cmd "/mnt/c/PendriveRecovery/pendrive_backup.img" options,keep_corrupted_file,paranoid,fileopt,everything,enable,wholespace,search</div>
+          </div>
+
+          <div style="margin-top: 1.5rem; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--warning); font-weight: bold; font-size: 0.9rem;">⚠️ Pen Drive / Optical Drive USB Binding (PowerShell Admin)</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">
+              <code>usbipd list</code> → find the BUSID of your pen drive or optical drive:<br>
+              <code>usbipd bind --busid &lt;BUSID&gt;</code> (admin, once per USB port — survives reboot)<br>
+              <code>usbipd attach --busid &lt;BUSID&gt; --wsl</code><br>
+              <code>usbipd detach --busid &lt;BUSID&gt;</code> — while attached the drive lives in WSL2 and is
+              <strong>deliberately hidden from This PC</strong>; detach (or use the release button above) to get it back.<br><br>
+              <strong style="color: var(--warning);">STOP USING the pen drive immediately</strong> — every new write overwrites recoverable data. Quick-formatted drives (the Windows default) are usually highly recoverable; full formats that zero-fill the flash are not.
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem; background: rgba(37, 150, 190, 0.1); border: 1px solid var(--primary); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--secondary); font-weight: bold; font-size: 0.9rem;">🧩 WSL2 Toolchain Status</div>
+            <div id="tools-status" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">Checking WSL2 toolchain...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Transcode (HandBrake NVENC) -->
+    <div id="nvenc-tab" class="module-pane">
+      <div class="grid-2">
+        <div class="card">
+          <h2>⚡ HandBrake RTX 3050 NVENC Transcoder</h2>
+
+          <div class="form-group">
+            <label>Input File Path (VOB / ISO / MP4):</label>
+            <input type="text" id="trans-input" class="form-control form-control-code" value="/mnt/c/Recovery/main_video.vob">
+          </div>
+
+          <div class="form-group">
+            <label>Output Video File Destination:</label>
+            <input type="text" id="trans-output" class="form-control form-control-code" value="/mnt/c/Recovery/Final_Output_H265.mp4">
+          </div>
+
+          <div class="form-group">
+            <label>NVIDIA Hardware Video Codec:</label>
+            <select id="trans-codec" class="form-control form-control-code">
+              <option value="nvenc_h265_10bit" selected>nvenc_h265_10bit (HEVC 10-Bit - Recommended)</option>
+              <option value="nvenc_h265">nvenc_h265 (Standard HEVC 8-Bit)</option>
+              <option value="nvenc_h264">nvenc_h264 (H.264 High Profile)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Constant Quality Factor (CQ): <span id="cq-val" style="color: var(--secondary);">18</span></label>
+            <input type="range" id="trans-cq" min="14" max="26" value="18" style="width: 100%; accent-color: var(--primary);" oninput="document.getElementById('cq-val').textContent=this.value">
+          </div>
+
+          <button class="btn" onclick="generateTranscodeCommand()">⚡ Generate HandBrake Command</button>
+        </div>
+
+        <div class="card">
+          <h2>💻 Transcode Telemetry &amp; Performance</h2>
+
+          <div class="terminal-box">
+            <div class="terminal-header">
+              <span class="terminal-title">HANDBRAKECLI NVENC COMMAND</span>
+              <button class="copy-btn" onclick="copyTerminal('trans-terminal')">Copy Command</button>
+            </div>
+            <div id="trans-terminal" class="terminal-content">HandBrakeCLI -i "/mnt/c/Recovery/main_video.vob" -o "/mnt/c/Recovery/Final_Output_H265.mp4" -e nvenc_h265_10bit -q 18 --encoder-preset slow --comb-detect --decomb -f mp4 --aencoder av_aac</div>
+          </div>
+
+          <div style="margin-top: 1.5rem; background: rgba(37, 150, 190, 0.1); border: 1px solid var(--primary); padding: 1rem; border-radius: 0.5rem;">
+            <div style="color: var(--secondary); font-weight: bold; font-size: 0.9rem;">🚀 Benchmarked Performance Specs</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.3rem;">
+              • Encoding Speed: ~282 fps on RTX 3050 NVENC<br>
+              • Processing Time: ~5 minutes for a 57-minute DVD feature<br>
+              • Interlace Filter: Automatic comb detection &amp; decombing applied
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Terminal & Server Integration -->
+    <div id="terminal-tab" class="module-pane">
+      <div class="card">
+        <h2>📜 Backend Python Integration Server</h2>
+        <p>The Python backend binds to <code>127.0.0.1</code> only. Open the app from <code>http://127.0.0.1:8080/</code> so it receives a per-launch API token; every <code>/api/*</code> call (except <code>/api/health</code>) requires <code>Authorization: Bearer &lt;token&gt;</code>. The token is also written to <code>.runtime/api_token</code>.</p>
+        
+        <div class="terminal-box" style="margin-top: 1rem;">
+          <div class="terminal-header">
+            <span class="terminal-title">PYTHON SERVER LAUNCH COMMAND</span>
+            <button class="copy-btn" onclick="copyTerminal('server-terminal')">Copy Command</button>
+          </div>
+          <div id="server-terminal" class="terminal-content">python video_studio_backend.py --open-browser</div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <h3>API Endpoint Documentation</h3>
+          <ul style="margin-top: 0.5rem; line-height: 1.8; color: var(--text-muted); font-size: 0.95rem;">
+            <li><code>POST /api/cut</code> - Execute instant stream copy cut or NVENC cut</li>
+            <li><code>POST /api/join</code> - Execute VOB bitwise copy or FFmpeg demux concat</li>
+            <li><code>POST /api/transcode</code> - Trigger HandBrakeCLI NVENC transcoding</li>
+            <li><code>POST /api/media_cancel</code> - Stop the running cut, join or transcode (partial output removed)</li>
+            <li><code>GET /api/drives</code> - List optical + USB flash drives attached to WSL2 (flags Windows USB devices that still need sharing)</li>
+            <li><code>POST /api/usbipd_bind</code> - Share/attach one USB storage bus ID with WSL2 (single UAC prompt, validated bus ID)</li>
+            <li><code>POST /api/usbipd_release</code> - Detach one USB storage bus ID from WSL2 so Windows regains it and it shows in This PC again</li>
+            <li><code>GET /api/tools</code> - WSL2 toolchain check (ddrescue / photorec / testdisk)</li>
+            <li><code>POST /api/ddrescue</code> - Execute GNU ddrescue drive scraping (auto 512B/2048B sectors)</li>
+            <li><code>POST /api/photorec</code> - Carve all files from an image with PhotoRec</li>
+            <li><code>POST /api/recover_all</code> - Full async pipeline: image → carve (<code>GET /api/recovery_progress</code> to poll). Add <code>{"carve": false}</code> for imaging-only (Step 1), or <code>{"skip_imaging": true}</code> to carve an existing image (Step 2)</li>
+            <li><code>POST /api/recovery_cancel</code> - Cleanly stop the running recovery (mapfile kept, resumable)</li>
+            <li><code>POST /api/testdisk</code> - Open interactive TestDisk for undelete with original filenames</li>
+            <li><code>POST /api/open_folder</code> - Open a recovery folder in Windows Explorer</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    © 2026 Ultimate Video Cut, Join &amp; Recovery Studio • Powered by Python, HandBrake, ddrescue &amp; NVIDIA RTX 3050
+  </footer>
+
+  <script>
+    const VS_TOKEN = window.__VS_TOKEN__ || '';
+
+    // Same-origin only: the server injects a per-launch bearer token into this page.
+    async function apiFetch(path, options = {}) {
+      const opts = Object.assign({ cache: 'no-store' }, options);
+      const headers = new Headers(opts.headers || {});
+      if (VS_TOKEN && VS_TOKEN.indexOf('__API_') !== 0) headers.set('Authorization', 'Bearer ' + VS_TOKEN);
+      opts.headers = headers;
+      const res = await fetch(path, opts);
+      if (res.status === 401) {
+        throw new Error('API token missing or expired — open this page from http://127.0.0.1:8080/ (not the .html file) and retry.');
+      }
+      return res;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.module-pane').forEach(pane => pane.classList.remove('active'));
+      
+      if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+      }
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+    }
+
+    function copyTerminal(id, btnEl) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const text = el.innerText;
+      const btn = btnEl || (event ? event.currentTarget : null);
+
+      navigator.clipboard.writeText(text).then(() => {
+        if (btn) {
+          const orig = btn.innerText;
+          btn.innerText = 'Copied!';
+          btn.style.background = '#10b981';
+          btn.style.color = '#fff';
+          setTimeout(() => {
+            btn.innerText = orig;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        }
+      }).catch(err => {
+        console.error("Copy failed:", err);
+      });
+    }
+
+    function winToWslPath(pathStr) {
+      if (!pathStr) return pathStr;
+      if (pathStr.startsWith('/mnt/') || pathStr.startsWith('/dev/')) return pathStr;
+      // Convert C:\path to /mnt/c/path
+      return pathStr.replace(/^([A-Za-z]):\\/, (match, drive) => `/mnt/${drive.toLowerCase()}/`).replace(/\\/g, '/');
+    }
+
+    function calculateDynamicOutputPath(inputPath) {
+      if (!inputPath) return 'C:\\Recovery\\Trimmed_main_video.mp4';
+      
+      const lastSlash = Math.max(inputPath.lastIndexOf('\\'), inputPath.lastIndexOf('/'));
+      let dir = '';
+      let filename = inputPath;
+      
+      if (lastSlash !== -1) {
+        dir = inputPath.substring(0, lastSlash + 1);
+        filename = inputPath.substring(lastSlash + 1);
+      }
+      
+      const lastDot = filename.lastIndexOf('.');
+      let baseName = filename;
+      let ext = '.mp4';
+      
+      if (lastDot !== -1) {
+        baseName = filename.substring(0, lastDot);
+        ext = filename.substring(lastDot);
+      }
+      
+      // Suffix/prefix with Trimmed_ (e.g. Trimmed_2.Repository.mp4)
+      const trimmedName = `Trimmed_${baseName}${ext}`;
+      return dir ? `${dir}${trimmedName}` : trimmedName;
+    }
+
+    function setInputVideoPath(filePath) {
+      const cutInput = document.getElementById('cut-input');
+      const cutOutput = document.getElementById('cut-output');
+      if (!cutInput || !filePath) return;
+
+      cutInput.value = filePath;
+
+      // Automatically suggest dynamic output filename with Trimmed_
+      if (cutOutput) {
+        cutOutput.value = calculateDynamicOutputPath(filePath);
+      }
+
+      generateCutCommand();
+    }
+
+    function resetDynamicOutputPath() {
+      const inputPath = (document.getElementById('cut-input')?.value || '').trim();
+      const cutOutput = document.getElementById('cut-output');
+      const feedback = document.getElementById('output-picker-feedback');
+      
+      if (cutOutput) {
+        cutOutput.value = calculateDynamicOutputPath(inputPath);
+        generateCutCommand();
+        if (feedback) {
+          feedback.style.display = 'block';
+          feedback.style.color = '#10b981';
+          feedback.innerText = `✔ Reset output path to: ${cutOutput.value}`;
+          setTimeout(() => { feedback.style.display = 'none'; }, 3000);
+        }
+      }
+    }
+
+    function promptCustomOutputName() {
+      const cutOutput = document.getElementById('cut-output');
+      if (!cutOutput) return;
+      const current = cutOutput.value;
+      const lastSlash = Math.max(current.lastIndexOf('\\'), current.lastIndexOf('/'));
+      const dir = lastSlash !== -1 ? current.substring(0, lastSlash + 1) : '';
+      const currentName = lastSlash !== -1 ? current.substring(lastSlash + 1) : current;
+      
+      const newName = prompt("Enter custom output video file name:", currentName);
+      if (newName && newName.trim()) {
+        cutOutput.value = dir ? `${dir}${newName.trim()}` : newName.trim();
+        generateCutCommand();
+      }
+    }
+
+    function browseInputFileNative() {
+      const feedback = document.getElementById('file-picker-feedback');
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.color = '#38bdf8';
+        feedback.innerText = '📂 Opening Windows File Explorer... Please select your video file.';
+      }
+
+      apiFetch('/api/browse_file')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.path) {
+            setInputVideoPath(data.path);
+            if (feedback) {
+              feedback.style.color = '#10b981';
+              feedback.innerText = `✔ Loaded Full Path: ${data.path}`;
+              setTimeout(() => { feedback.style.display = 'none'; }, 4500);
+            }
+          } else if (data.cancelled) {
+            if (feedback) {
+              feedback.style.color = '#94a3b8';
+              feedback.innerText = 'ℹ File selection cancelled.';
+              setTimeout(() => { feedback.style.display = 'none'; }, 2500);
+            }
+          } else {
+            if (feedback) {
+              feedback.style.color = '#ef4444';
+              feedback.innerText = `✖ ${data.message || 'Could not select file.'}`;
+            }
+          }
+        })
+        .catch(err => {
+          if (feedback) {
+            feedback.style.color = '#f59e0b';
+            feedback.innerText = '⚠️ ' + (err.message || 'Python Backend Server is Offline! Please launch "start_studio.bat" or "run_backend.bat" to enable the native Windows file browser with full path support.');
+          }
+        });
+    }
+
+    function browseOutputFileNative() {
+      const feedback = document.getElementById('output-picker-feedback');
+      const currentOutput = (document.getElementById('cut-output')?.value || '').trim();
+      const lastSlash = Math.max(currentOutput.lastIndexOf('\\'), currentOutput.lastIndexOf('/'));
+      const currentName = lastSlash !== -1 ? currentOutput.substring(lastSlash + 1) : (currentOutput || 'Trimmed_output.mp4');
+
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.color = '#38bdf8';
+        feedback.innerText = '📂 Opening Windows Save File Dialog... Choose destination folder and file name.';
+      }
+
+      apiFetch(`/api/browse_save_file?initial_name=${encodeURIComponent(currentName)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.path) {
+            const cutOutput = document.getElementById('cut-output');
+            if (cutOutput) {
+              cutOutput.value = data.path;
+              generateCutCommand();
+            }
+            if (feedback) {
+              feedback.style.color = '#10b981';
+              feedback.innerText = `✔ Destination set: ${data.path}`;
+              setTimeout(() => { feedback.style.display = 'none'; }, 4500);
+            }
+          } else if (data.cancelled) {
+            if (feedback) {
+              feedback.style.color = '#94a3b8';
+              feedback.innerText = 'ℹ Destination selection cancelled.';
+              setTimeout(() => { feedback.style.display = 'none'; }, 2500);
+            }
+          }
+        })
+        .catch(err => {
+          if (feedback) {
+            feedback.style.color = '#f59e0b';
+            feedback.innerText = '⚠️ ' + (err.message || 'Python Backend is Offline! Launch start_studio.bat to use native Windows Save dialog.');
+          }
+        });
+    }
+
+    function selectWorkspaceVideo(filename) {
+      apiFetch('/api/workspace_videos')
+        .then(res => res.json())
+        .then(data => {
+          const match = data.videos && data.videos.find(v => v.filename === filename);
+          if (match) {
+            setInputVideoPath(match.path);
+          } else {
+            setInputVideoPath(filename);
+          }
+        })
+        .catch(() => {
+          setInputVideoPath(filename);
+        });
+    }
+
+    function refreshWorkspaceVideos() {
+      apiFetch('/api/workspace_videos')
+        .then(res => res.json())
+        .then(data => {
+          if (data.videos && data.videos.length > 0) {
+            const container = document.getElementById('workspace-videos-container');
+            if (!container) return;
+            container.textContent = '';
+            const label = document.createElement('span');
+            label.style.cssText = 'font-size: 0.8rem; color: var(--text-muted); font-weight: 500;';
+            label.textContent = 'Quick Pick:';
+            container.appendChild(label);
+            data.videos.forEach(v => {
+              const chip = document.createElement('span');
+              chip.className = 'file-chip';
+              chip.title = v.path;
+              chip.textContent = `🎬 ${v.filename} (${v.size_mb} MB)`;
+              chip.addEventListener('click', () => setInputVideoPath(v.path));
+              container.appendChild(chip);
+            });
+            const scan = document.createElement('span');
+            scan.className = 'file-chip';
+            scan.title = 'Refresh workspace video list';
+            scan.textContent = '🔄 Scan Workspace';
+            scan.addEventListener('click', refreshWorkspaceVideos);
+            container.appendChild(scan);
+          }
+        })
+        .catch(() => {});
+    }
+
+    function generateCutCommand() {
+      let input = (document.getElementById('cut-input')?.value || '').trim();
+      let output = (document.getElementById('cut-output')?.value || '').trim();
+      const start = (document.getElementById('cut-start')?.value || '').trim();
+      const end = (document.getElementById('cut-end')?.value || '').trim();
+      const modeRadio = document.querySelector('input[name="cut-mode"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'copy';
+      const env = document.getElementById('cut-env')?.value || 'windows';
+
+      let ffmpegBin = 'ffmpeg';
+      if (env === 'wsl') {
+        ffmpegBin = 'wsl ffmpeg';
+        input = winToWslPath(input);
+        output = winToWslPath(output);
+      }
+
+      let cmd = '';
+      if (mode === 'copy') {
+        cmd = `${ffmpegBin} -y -ss ${start} -to ${end} -i "${input}" -c copy -map_metadata -1 -movflags +faststart "${output}"`;
+      } else {
+        cmd = `${ffmpegBin} -y -ss ${start} -to ${end} -i "${input}" -c:v hevc_nvenc -cq 18 -c:a aac -movflags +faststart "${output}"`;
+      }
+
+      const term = document.getElementById('cut-terminal');
+      if (term) term.innerText = cmd;
+    }
+
+    function browseJoinFileInputNative() {
+      apiFetch('/api/browse_file')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.path) {
+            const input = document.getElementById('join-file-input');
+            if (input) input.value = data.path;
+          }
+        })
+        .catch(() => {
+          alert('⚠️ Python Backend is Offline! Launch "start_studio.bat" or "run_backend.bat" to enable native file browsing.');
+        });
+    }
+
+    function browseJoinOutputNative() {
+      const current = (document.getElementById('join-output')?.value || 'main_video.vob').trim();
+      const lastSlash = Math.max(current.lastIndexOf('\\'), current.lastIndexOf('/'));
+      const initial = lastSlash !== -1 ? current.substring(lastSlash + 1) : current;
+
+      apiFetch(`/api/browse_save_file?initial_name=${encodeURIComponent(initial)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.path) {
+            const output = document.getElementById('join-output');
+            if (output) {
+              output.value = data.path;
+              generateJoinCommand();
+            }
+          }
+        })
+        .catch(() => {
+          alert('⚠️ Python Backend is Offline! Launch "start_studio.bat" or "run_backend.bat" to enable native destination dialog.');
+        });
+    }
+
+    function addJoinFile() {
+      const val = (document.getElementById('join-file-input')?.value || '').trim();
+      if (!val) return;
+      
+      const list = document.getElementById('join-file-list');
+      const li = document.createElement('li');
+      li.className = 'file-item';
+      const text = document.createElement('span');
+      text.textContent = val;
+      const remove = document.createElement('span');
+      remove.className = 'remove-file';
+      remove.textContent = '✖';
+      remove.addEventListener('click', () => removeJoinFile(remove));
+      li.append(text, remove);
+      list.appendChild(li);
+      document.getElementById('join-file-input').value = '';
+      generateJoinCommand();
+    }
+
+    function removeJoinFile(el) {
+      el.parentElement.remove();
+      generateJoinCommand();
+    }
+
+    function generateJoinCommand() {
+      const items = Array.from(document.querySelectorAll('#join-file-list .file-item span:first-child')).map(el => el.innerText);
+      const output = (document.getElementById('join-output')?.value || '').trim();
+      const modeRadio = document.querySelector('input[name="join-mode"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'vob_copy';
+
+      let cmd = '';
+      if (items.length < 2) {
+        cmd = `# Please add at least 2 video files above to generate join command\ncmd /c copy /b VTS_01_1.VOB + VTS_01_2.VOB "${output}"`;
+      } else if (mode === 'vob_copy') {
+        cmd = `cmd /c copy /b ${items.join(' + ')} "${output}"`;
+      } else {
+        cmd = `# Create concat_list.txt with files, then run:\nffmpeg -y -f concat -safe 0 -i concat_list.txt -c copy "${output}"`;
+      }
+
+      const term = document.getElementById('join-terminal');
+      if (term) term.innerText = cmd;
+    }
+
+    function runJoinApi() {
+      const statusDiv = document.getElementById('join-api-status');
+      if (!statusDiv) return;
+
+      const items = Array.from(document.querySelectorAll('#join-file-list .file-item span:first-child')).map(el => el.innerText.trim()).filter(Boolean);
+      const output = (document.getElementById('join-output')?.value || '').trim();
+      const mode = document.querySelector('input[name="join-mode"]:checked')?.value || 'vob_copy';
+
+      if (items.length < 2) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#ef4444';
+        statusDiv.innerText = '✖ Please add at least 2 video file segments above to join.';
+        return;
+      }
+
+      if (!output) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#ef4444';
+        statusDiv.innerText = '✖ Please specify a merged output destination path.';
+        return;
+      }
+
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#38bdf8';
+      statusDiv.innerText = `⏳ Joining ${items.length} clips via the local backend... Please wait...`;
+      setMediaRunning('join-cancel', true);
+
+      const payload = {
+        files: items,
+        output: output,
+        mode: mode
+      };
+
+      apiFetch('/api/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.cancelled) {
+          statusDiv.style.color = '#f59e0b';
+          statusDiv.innerText = '⏹️ Join cancelled. No output file was written; the clips are untouched.';
+        } else if (data.success) {
+          statusDiv.style.color = '#10b981';
+          statusDiv.innerText = '✔ ' + data.message + '\nOutput File: ' + (data.output_file || output) + '\nCommand Executed: ' + data.command;
+        } else {
+          statusDiv.style.color = '#ef4444';
+          statusDiv.innerText = '✖ Backend Join Failed: ' + data.error + '\nCommand: ' + (data.command || '');
+        }
+      })
+      .catch(err => {
+        statusDiv.style.color = '#f59e0b';
+        statusDiv.innerText = '⚠️ ' + (err.message || 'Backend Connection Error: Make sure "python video_studio_backend.py" (or start_studio.bat) is running, then reload http://127.0.0.1:8080/.');
+      })
+      .finally(() => setMediaRunning('join-cancel', false));
+    }
+
+    // ---------------- Cancel for cut / join (they run as backend jobs) ----------------
+    function setMediaRunning(buttonId, running) {
+      const button = document.getElementById(buttonId);
+      if (!button) return;
+      button.dataset.label = button.dataset.label || button.textContent;
+      button.textContent = button.dataset.label;
+      button.disabled = false;
+      button.hidden = !running;
+    }
+
+    function cancelMedia(button) {
+      button.disabled = true;
+      button.textContent = '⏳ Cancelling...';
+      const restore = () => { button.disabled = false; button.textContent = button.dataset.label; };
+      apiFetch('/api/media_cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        .then(res => res.json())
+        .then(data => { if (!data.success) restore(); })
+        .catch(restore);
+    }
+
+    // ---------------- Recovery (ddrescue + PhotoRec) ----------------
+    let rescueOutputTouched = false;
+    let recoveryPollTimer = null;
+    let repairPollTimer = null;
+    let recoveryStream = null;
+    let recoveryStreamJob = null;
+    let recoveryLastEventId = 0;
+    let recoveryReconnects = 0;
+    let repairStream = null;
+    let repairStreamJob = null;
+    let repairLastEventId = 0;
+    let repairReconnects = 0;
+    let liveLogLines = [];
+
+    function isOpticalDevice(dev) {
+      return /^\/dev\/(sr\d+|cdrom)$/.test(dev || '');
+    }
+
+    function getRescueSectorSize() {
+      const sel = document.getElementById('rescue-sector')?.value || 'auto';
+      if (sel !== 'auto') return sel;
+      const dev = document.getElementById('rescue-device')?.value || '';
+      return isOpticalDevice(dev) ? '2048' : '512';
+    }
+
+    const CARVE_TYPE_FAMILIES = {
+      images: ['jpg', 'png', 'gif', 'bmp', 'tif', 'psd', 'ico', 'pcx', 'xcf', 'emf', 'wmf', 'crw', 'orf', 'raf', 'rw2', 'mrw', 'x3f', 'raw'],
+      videos: ['mov', 'riff', 'mkv', 'mpg', 'asf', 'flv', 'm2ts', 'wtv', 'dv'],
+      pdf: ['pdf'],
+      word: ['doc', 'zip'],
+      excel: ['doc', 'zip'],
+      powerpoint: ['doc', 'zip']
+    };
+
+    function getCarveTypes() {
+      return [...document.querySelectorAll('#carve-types input:checked')]
+        .map(i => i.value).filter(v => v !== 'all');
+    }
+
+    function onCarveTypeChange(e) {
+      const boxes = [...document.querySelectorAll('#carve-types input')];
+      const all = boxes.find(b => b.value === 'all');
+      if (e && e.target === all && all.checked) {
+        boxes.forEach(b => { if (b !== all) b.checked = false; });
+      } else if (e && e.target !== all && e.target.checked) {
+        all.checked = false;
+      }
+      if (!boxes.some(b => b.checked)) all.checked = true;
+
+      const types = getCarveTypes();
+      const hint = document.getElementById('carve-types-hint');
+      if (hint) {
+        const office = types.filter(t => ['word', 'excel', 'powerpoint'].includes(t));
+        hint.innerText = !types.length
+          ? 'Every format PhotoRec knows (most complete, includes system/junk fragments). Output: carved.1, carved.2, …'
+          : `Only the selected types are carved — faster, no junk. Output: ${getRecupDir((document.getElementById('rescue-output')?.value || '').trim(), types).split('/').pop()}.1, .2, …`
+            + (office.length && office.length < 3 ? '\nWord/Excel/PowerPoint share the same containers on disk — unselected Office/zip results are moved (not deleted) into a "_other" folder.' : '');
+      }
+      generateRescueCommands();
+    }
+
+    function photorecScriptFor(types) {
+      if (!types.length) return 'options,keep_corrupted_file,paranoid,fileopt,everything,enable,wholespace,search';
+      const fams = [...new Set(types.flatMap(t => CARVE_TYPE_FAMILIES[t] || []))];
+      return `options,keep_corrupted_file,paranoid,fileopt,everything,disable,${fams.map(f => f + ',enable').join(',')},blocksize,512,wholespace,search`;
+    }
+
+    function getRecupDir(imagePath, types) {
+      const p = (imagePath || '').replace(/\\/g, '/').replace(/\/+$/, '');
+      const idx = p.lastIndexOf('/');
+      const t = types === undefined ? getCarveTypes() : types;
+      return (idx > 0 ? p.slice(0, idx) : '.') + '/carved' + (t.length ? '_' + t.join('-') : '');
+    }
+
+    // Each run gets its own date/time folder so a new drive is never confused with a
+    // previous image (same path + .log mapfile makes ddrescue "resume" an old, complete image).
+    function recoveryRunStamp() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+    }
+
+    // Stamp only when a run actually starts. Pre-stamping at load or on device
+    // change fills the field with a folder no run ever created, so TestDisk, Step 2
+    // carving and Open Folder all fail with "Image not found".
+    function defaultRescueOutput(dev) {
+      const stamp = recoveryRunStamp();
+      return isOpticalDevice(dev)
+        ? `/mnt/c/Recovery/${stamp}/cd_backup.iso`
+        : `/mnt/c/PendriveRecovery/${stamp}/pendrive_backup.img`;
+    }
+
+    function onRescueDeviceChange() {
+      generateRescueCommands();
+    }
+
+    function generateRescueCommands() {
+      const dev = document.getElementById('rescue-device')?.value || '/dev/sdb';
+      const out = (document.getElementById('rescue-output')?.value || '').trim();
+      const modeRadio = document.querySelector('input[name="rescue-mode"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'normal';
+      const sector = getRescueSectorSize();
+      const optical = isOpticalDevice(dev);
+
+      let dd;
+      if (optical) {
+        dd = mode === 'aggressive'
+          ? `ddrescue -b 2048 -d -r 5 -R -v ${dev} "${out}" "${out}.log"`
+          : `ddrescue -b 2048 -n -v ${dev} "${out}" "${out}.log"`;
+      } else {
+        dd = mode === 'aggressive'
+          ? `ddrescue -b ${sector} -d -r 5 -v ${dev} "${out}" "${out}.log"`
+          : `ddrescue -b ${sector} -r 3 -v ${dev} "${out}" "${out}.log"`;
+      }
+
+      const t1 = document.getElementById('rescue-terminal');
+      if (t1) t1.innerText = dd;
+
+      const t2 = document.getElementById('photorec-terminal');
+      if (t2) {
+        t2.innerText = `photorec /log /d "${getRecupDir(out)}" /cmd "${out}" ${photorecScriptFor(getCarveTypes())}`
+          + `\n\n# One-time toolchain install inside WSL2:\nsudo apt install -y gddrescue testdisk`;
+      }
+    }
+
+    function renderUsbHandoff(unshared, attached, released) {
+      const row = document.getElementById('rescue-bind-row');
+      if (!row) return;
+      row.textContent = '';
+      unshared = unshared || [];
+      attached = attached || [];
+      released = released || [];
+      if (!unshared.length && !attached.length && !released.length) {
+        row.style.display = 'none';
+        return;
+      }
+      row.style.display = 'flex';
+      const addButton = (prefix, label, busids, title, handler) => {
+        row.appendChild(Object.assign(document.createElement('span'), { textContent: label }));
+        busids.forEach(id => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-action';
+          btn.textContent = `${prefix} ${id}`;
+          btn.title = title;
+          btn.addEventListener('click', () => handler(id));
+          row.appendChild(btn);
+        });
+      };
+      if (attached.length) {
+        addButton('⏏', 'In WSL2 (hidden from This PC) — release to get it back:', attached,
+          'usbipd detach: hand this device back to Windows so it shows in Explorer again',
+          releaseUsbFromWsl);
+      }
+      if (unshared.length) {
+        addButton('🔗', 'USB seen by Windows but not shared with WSL:', unshared,
+          'One UAC prompt: bind this device in usbipd and attach it to WSL2',
+          shareUsbWithWsl);
+      }
+      if (released.length) {
+        addButton('🔗', 'Released to Windows — Detect Drives will leave it in This PC:', released,
+          'Attach this device to WSL2 again for imaging or carving',
+          shareUsbWithWsl);
+      }
+    }
+
+    function releaseUsbFromWsl(busid) {
+      const info = document.getElementById('rescue-drive-info');
+      if (!info || !busid) return;
+      info.style.display = 'block';
+      info.style.color = '#38bdf8';
+      info.innerText = `⏳ Releasing ${busid} back to Windows...`;
+      apiFetch('/api/usbipd_release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ busid })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            info.style.color = '#ef4444';
+            info.innerText = '✖ ' + (data.error || 'Could not release the USB device.');
+            return;
+          }
+          info.style.color = '#10b981';
+          info.innerText = '✔ ' + (data.message || `${busid} handed back to Windows.`);
+          detectDrives();
+        })
+        .catch(err => {
+          info.style.color = '#f59e0b';
+          info.innerText = '⚠️ ' + (err.message || 'Backend offline — start it with start_studio.bat.');
+        });
+    }
+
+    function shareUsbWithWsl(busid) {
+      const info = document.getElementById('rescue-drive-info');
+      if (!info || !busid) return;
+      info.style.display = 'block';
+      info.style.color = '#38bdf8';
+      info.innerText = `⏳ Sharing ${busid} with WSL2 — approve the Windows admin prompt if it appears...`;
+      apiFetch('/api/usbipd_bind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ busid })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            info.style.color = '#ef4444';
+            info.innerText = '✖ ' + (data.error || 'Could not share the USB device.');
+            return;
+          }
+          info.style.color = '#10b981';
+          info.innerText = '✔ ' + (data.message || `${busid} attached to WSL2.`);
+          detectDrives();
+        })
+        .catch(err => {
+          info.style.color = '#f59e0b';
+          info.innerText = '⚠️ ' + (err.message || 'Backend offline — start it with start_studio.bat.');
+        });
+    }
+
+    function detectDrives() {
+      const sel = document.getElementById('rescue-device');
+      const info = document.getElementById('rescue-drive-info');
+      if (!sel || !info) return;
+      info.style.display = 'block';
+      info.style.color = '#38bdf8';
+      info.innerText = '⏳ Querying connected drives through WSL2...';
+
+      apiFetch('/api/drives')
+        .then(res => res.json())
+        .then(data => {
+          renderUsbHandoff(data.unshared || [], data.attached || [], data.released || []);
+          const drives = (data.drives || []).sort((a, b) => (a.type === 'usb' ? 0 : 1) - (b.type === 'usb' ? 0 : 1));
+          if (!drives.length) {
+            info.style.color = '#f59e0b';
+            info.innerText = (data.unshared && data.unshared.length)
+              ? '⚠️ No drive inside WSL2 yet. Use a "Share" button below (approves once via UAC), then Detect Drives again.'
+              : '⚠️ No drive found. Plug the pen drive in, then click Detect Drives. First time on a new USB port: use "Share with WSL" below.';
+            return;
+          }
+          const previous = sel.value;
+          sel.textContent = '';
+          drives.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.device;
+            opt.textContent = `${d.type === 'optical' ? '💿' : '💾'} ${d.device} — ${d.model} ${d.size} (${d.sector_size}B sectors)`;
+            sel.appendChild(opt);
+          });
+          if (drives.some(d => d.device === previous)) sel.value = previous;
+          const autoNote = (data.auto_attached && data.auto_attached.length)
+            ? ` (attached via usbipd: ${data.auto_attached.join(', ')})` : '';
+          info.style.color = '#10b981';
+          info.innerText = `✔ ${drives.length} drive(s) detected${autoNote}. Selected: ${sel.value}`;
+          onRescueDeviceChange();
+        })
+        .catch(err => {
+          info.style.color = '#f59e0b';
+          info.innerText = '⚠️ ' + (err.message || 'Backend offline — start it with start_studio.bat. Static example devices + manual commands still work.');
+        });
+    }
+
+    function loadToolsStatus() {
+      const el = document.getElementById('tools-status');
+      if (!el) return;
+      apiFetch('/api/tools')
+        .then(res => res.json())
+        .then(d => {
+          const t = d.tools || {};
+          const badge = (name, ok) => `${ok ? '🟢' : '🔴'} ${name}`;
+          let txt = `${badge('ddrescue', t.ddrescue)}   ${badge('photorec', t.photorec)}   ${badge('testdisk', t.testdisk)}   ·   bridge: ${d.host} (${d.wsl_distro})`;
+          if (d.install_hint) {
+            txt += `\n⚠️ Missing tools — install inside WSL2:  ${d.install_hint}`;
+          }
+          el.innerText = txt;
+        })
+        .catch(() => { el.innerText = 'Backend offline — tools are checked when the server runs (start_studio.bat).'; });
+    }
+
+    function runRecovery() {
+      const status = document.getElementById('recovery-status');
+      const live = document.getElementById('recovery-live-terminal');
+      const dev = document.getElementById('rescue-device')?.value || '';
+      let out = (document.getElementById('rescue-output')?.value || '').trim();
+      const carve = document.getElementById('rescue-carve')?.checked ?? true;
+      const mode = document.querySelector('input[name="rescue-mode"]:checked')?.value || 'normal';
+      const sectorSel = document.getElementById('rescue-sector')?.value || 'auto';
+      const sector = sectorSel === 'auto' ? null : parseInt(sectorSel, 10);
+
+      if (!dev || !out) {
+        status.style.display = 'block';
+        status.style.color = '#ef4444';
+        status.innerText = '✖ Please select a device and an output image path.';
+        return;
+      }
+
+      // New imaging run → fresh date/time folder (unless the user hand-set a path,
+      // e.g. pointing back at an existing image to resume a partial capture).
+      if (!rescueOutputTouched) {
+        out = defaultRescueOutput(dev);
+        const outField = document.getElementById('rescue-output');
+        if (outField) { outField.value = out; generateRescueCommands(); }
+        // Claim the folder: this run is creating it, so later scans must not replace it.
+        rescueOutputTouched = true;
+      }
+
+      status.style.display = 'block';
+      status.style.color = '#38bdf8';
+      status.innerText = `⏳ Starting recovery of ${dev} (mode: ${mode}, carve: ${carve})...`;
+      if (live) live.innerText = 'Starting...';
+
+      apiFetch('/api/recover_all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: dev, output: out, mode: mode, carve: carve, sector_size: sector, file_types: getCarveTypes() })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            status.style.color = '#ef4444';
+            status.innerText = '✖ ' + (data.error || 'Failed to start recovery.');
+            return;
+          }
+          status.style.color = '#38bdf8';
+          status.innerText = `⏳ ${data.message}\nImage: ${data.image}\nCarved files folder: ${data.recup_dir}`;
+          if (!startRecoveryStream(data.job_id, data.events_url)) pollRecovery();
+        })
+        .catch(err => {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Backend connection error — make sure "python video_studio_backend.py" (or start_studio.bat) is running.');
+        });
+    }
+
+    function runCarveOnly() {
+      const status = document.getElementById('recovery-status');
+      const live = document.getElementById('recovery-live-terminal');
+      const out = (document.getElementById('rescue-output')?.value || '').trim();
+      const mode = document.querySelector('input[name="rescue-mode"]:checked')?.value || 'normal';
+
+      if (!out) {
+        status.style.display = 'block';
+        status.style.color = '#ef4444';
+        status.innerText = '✖ Set the output image path first — that .img file is what gets carved.';
+        return;
+      }
+
+      const types = getCarveTypes();
+      status.style.display = 'block';
+      status.style.color = '#38bdf8';
+      status.innerText = `⏳ Starting carving of ${out} (no re-imaging) · types: ${types.length ? types.join(', ') : 'all'}...`;
+      if (live) live.innerText = 'Starting...';
+
+      apiFetch('/api/recover_all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ output: out, mode: mode, carve: true, skip_imaging: true, file_types: types })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            status.style.color = '#ef4444';
+            status.innerText = '✖ ' + (data.error || 'Failed to start carving.');
+            return;
+          }
+          status.style.color = '#38bdf8';
+          status.innerText = `⏳ ${data.message}\nImage: ${data.image}\nCarved files folder: ${data.recup_dir}`;
+          if (!startRecoveryStream(data.job_id, data.events_url)) pollRecovery();
+        })
+        .catch(err => {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Backend connection error — make sure the backend is running.');
+        });
+    }
+
+    function fmtDur(s) {
+      if (s == null) return null;
+      s = Math.round(s);
+      return s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`;
+    }
+
+    function escapeText(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[ch]);
+    }
+
+    // ---------------- Live log buffer (shared by SSE + polling) ----------------
+    function renderLiveLog() {
+      const live = document.getElementById('recovery-live-terminal');
+      if (!live) return;
+      live.innerText = liveLogLines.join('\n');
+      live.scrollTop = live.scrollHeight;
+    }
+
+    function seedLiveLog(log) {
+      if (!Array.isArray(log)) return;
+      liveLogLines = log.slice(-400);
+      renderLiveLog();
+    }
+
+    function appendLiveLog(message) {
+      liveLogLines.push(String(message));
+      if (liveLogLines.length > 400) liveLogLines.shift();
+      renderLiveLog();
+    }
+
+    // ---------------- Stage timeline ----------------
+    const STAGE_ICONS = { imaging: '🔍', testdisk: '🛠️', carving: '🧩', repair: '🔧' };
+
+    function stageStateText(state) {
+      return {
+        pending: 'waiting', running: 'running…', completed: 'done', done: 'done',
+        partial: 'warnings', failed: 'failed', error: 'failed', cancelled: 'cancelled',
+        skipped: 'skipped', off: 'off'
+      }[state] || state || 'waiting';
+    }
+
+    function renderStageTimeline(stages) {
+      const box = document.getElementById('stage-timeline');
+      if (!box) return;
+      if (!Array.isArray(stages) || !stages.length) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+      }
+      box.style.display = 'flex';
+      box.innerHTML = stages.map(stage => {
+        const state = stage.state || 'pending';
+        const seconds = stage.seconds != null ? ' · ' + fmtDur(stage.seconds) : '';
+        return `<div class="stage-node" data-state="${escapeText(state)}" title="${escapeText(stage.label || stage.name)}">`
+          + `<span class="stage-dot">${STAGE_ICONS[stage.name] || '⚙️'}</span>`
+          + `<span class="stage-name">${escapeText(stage.label || stage.name)}</span>`
+          + `<span class="stage-state">${escapeText(stageStateText(state))}${escapeText(seconds)}</span>`
+          + '</div>';
+      }).join('');
+    }
+
+    // ---------------- SSE plumbing ----------------
+    function sseToken() {
+      return VS_TOKEN && VS_TOKEN.indexOf('__API_') !== 0 ? VS_TOKEN : '';
+    }
+
+    function jobStreamUrl(eventsUrl, since, token) {
+      const query = [];
+      if (since) query.push('since=' + encodeURIComponent(since));
+      if (token) query.push('token=' + encodeURIComponent(token));
+      if (!query.length) return eventsUrl;
+      return eventsUrl + (eventsUrl.indexOf('?') === -1 ? '?' : '&') + query.join('&');
+    }
+
+    function closeRecoveryStream() {
+      if (recoveryStream) {
+        try { recoveryStream.close(); } catch (err) { /* already closed */ }
+      }
+      recoveryStream = null;
+    }
+
+    function closeRepairStream() {
+      if (repairStream) {
+        try { repairStream.close(); } catch (err) { /* already closed */ }
+      }
+      repairStream = null;
+    }
+
+    function startRecoveryStream(jobId, eventsUrl) {
+      closeRecoveryStream();
+      clearTimeout(recoveryPollTimer);
+      if (!jobId || !eventsUrl || typeof EventSource === 'undefined') return false;
+      if (recoveryStreamJob !== jobId) {
+        recoveryStreamJob = jobId;
+        recoveryLastEventId = 0;
+        recoveryReconnects = 0;
+        liveLogLines = [];
+      }
+      const stream = new EventSource(jobStreamUrl(eventsUrl, recoveryLastEventId, sseToken()));
+      recoveryStream = stream;
+
+      const track = event => {
+        const id = Number(event.lastEventId);
+        if (id) recoveryLastEventId = id;
+      };
+      stream.addEventListener('log', event => {
+        track(event);
+        try { appendLiveLog(JSON.parse(event.data).message); } catch (err) { /* ignore malformed frame */ }
+      });
+      stream.addEventListener('state', event => {
+        track(event);
+        recoveryReconnects = 0;
+        try {
+          const job = JSON.parse(event.data);
+          if (job && job.id === jobId) applyRecoverySnapshot(job);
+        } catch (err) { /* ignore malformed frame */ }
+      });
+      stream.addEventListener('end', () => {
+        closeRecoveryStream();
+        pollRecovery();
+      });
+      stream.onerror = () => {
+        closeRecoveryStream();
+        recoveryReconnects += 1;
+        if (recoveryReconnects <= 4) {
+          const delay = 1000 * recoveryReconnects;
+          setTimeout(() => { if (!recoveryStream) startRecoveryStream(jobId, eventsUrl); }, delay);
+        } else {
+          pollRecovery();
+        }
+      };
+      return true;
+    }
+
+    function renderRecoveryProgress(progress, job) {
+      const box = document.getElementById('recovery-progress');
+      if (!box || !progress) return;
+      box.style.display = 'block';
+      const repairRow = document.getElementById('rprog-repair');
+      if (repairRow) repairRow.style.display = 'none';
+      const stateText = {
+        pending: 'waiting…', skipped: 'skipped — reusing existing image', off: 'off — run Step 2 later',
+        running: 'running…', cancelled: 'cancelled', failed: 'failed', partial: 'partial — warnings',
+        completed: 'complete', done: 'complete', error: 'failed'
+      };
+      ['imaging', 'carving'].forEach(key => {
+        const p = progress[key];
+        const row = document.getElementById('rprog-' + key);
+        if (!p || !row) return;
+        row.style.display = 'block';
+        row.dataset.state = p.state;
+        const pct = p.pct == null ? null : Math.max(0, Math.min(100, p.pct));
+        row.querySelector('.rprog-fill').style.width = (pct == null ? (p.state === 'skipped' ? 100 : 0) : pct) + '%';
+        row.querySelector('.rprog-pct').textContent = pct == null ? (p.state === 'running' ? 'starting…' : '—') : pct.toFixed(pct >= 100 ? 0 : 2) + '%';
+        const parts = [];
+        if (p.state === 'running') {
+          if (p.phase) parts.push(p.phase);
+          if (p.detail) parts.push(p.detail);
+          if (p.eta) parts.push('ETA ' + p.eta);
+        } else {
+          parts.push(stateText[p.state] || p.state);
+          if (p.state !== 'pending' && p.detail) parts.push(p.detail);
+          if (p.seconds != null) parts.push('⏱️ took ' + fmtDur(p.seconds));
+        }
+        if (p.state === 'running' && job && job.stage === key) parts.push('⏱️ ' + fmtDur(job.elapsed) + ' so far');
+        row.querySelector('.rprog-detail').textContent = parts.join('  ·  ');
+      });
+    }
+
+    function applyRecoverySnapshot(job) {
+      if (!job) return false;
+      seedLiveLog(job.log);
+      renderRecoveryProgress(job.progress, job);
+      renderStageTimeline(job.stages);
+      const status = document.getElementById('recovery-status');
+      if (!status) return !!job.active;
+      const stageNames = {
+        starting: '🎬 Initializing',
+        imaging: '🔍 Imaging raw sectors (ddrescue)',
+        testdisk: '🛠️ Partition analysis (TestDisk)',
+        carving: '🧩 Carving all files (PhotoRec paranoid whole-space)',
+        completed: '✅ Completed',
+        partial: '⚠️ Finished with warnings',
+        failed: '❌ Failed',
+        cancelled: '⏹️ Cancelled (resumable)',
+        idle: 'Idle'
+      };
+      if (job.active) {
+        status.style.display = 'block';
+        status.style.color = '#38bdf8';
+        let line = `${stageNames[job.stage] || job.stage}  ·  ${job.elapsed}s` + (job.device ? `  ·  device ${job.device}` : '');
+        const cur = job.progress && job.progress[job.stage];
+        if (cur && cur.pct != null) line += `  ·  ${cur.pct.toFixed(2)}%` + (cur.eta ? ` (ETA ${cur.eta})` : '');
+        if (job.files_recovered != null) line += `  ·  files carved: ${job.files_recovered}`;
+        status.innerText = line;
+        return true;
+      }
+      if (job.stage && job.stage !== 'idle') {
+        // Same rule as initRecoveryState: a finished run releases the path, so the next
+        // disc gets a fresh folder instead of resuming this one's image and mapfile.
+        if (['cancelled', 'partial', 'failed', 'completed'].includes(job.stage)) {
+          rescueOutputTouched = job.stage !== 'completed';
+        }
+        status.style.display = 'block';
+        const imageLine = job.image ? `\nImage: ${job.image}` : '';
+        const pi = job.progress && job.progress.imaging;
+        const pc = job.progress && job.progress.carving;
+        const timeLine = `Time taken — Imaging: ${pi && pi.seconds != null ? fmtDur(pi.seconds) : 'skipped'}` +
+          ` · Carving: ${pc && pc.seconds != null ? fmtDur(pc.seconds) : 'n/a'}` +
+          ` · Overall: ${fmtDur(job.elapsed)}`;
+        if (job.stage === 'failed' || job.error) {
+          status.style.color = '#ef4444';
+          status.innerText = '✖ Recovery failed: ' + (job.error || 'unknown error') + imageLine
+            + (job.image ? '\nData captured so far is kept — fix the problem and re-run with the same image path to resume.' : '');
+        } else if (job.stage === 'cancelled') {
+          status.style.color = '#f59e0b';
+          status.innerText = '⏹️ Recovery cancelled. The partial image and ddrescue mapfile are kept.' + imageLine
+            + '\nRun "Run Full Recovery" again with this same image path to resume where it stopped.';
+        } else if (job.stage === 'partial') {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ Recovery finished with warnings (partial result).' + imageLine
+            + `\nFiles carved: ${job.files_recovered != null ? job.files_recovered : 'n/a'}`
+            + (job.recup_dir ? `\nCarved folder: ${job.recup_dir}.1, .2, …` : '')
+            + `\n${timeLine}`
+            + (job.set_aside ? `\nUnselected Office/zip files set aside: ${job.set_aside.count} → ${job.set_aside.folder}` : '')
+            + (pi && pi.state === 'partial' ? '\nImaging hit bad sectors — re-run with the same image path to retry them (ddrescue resumes from its mapfile).' : '');
+        } else if (job.files_recovered == null) {
+          status.style.color = '#10b981';
+          status.innerText = `✅ Imaging complete (Stage 1 of 3)!${pi && pi.seconds != null ? `\nTime taken — Imaging: ${fmtDur(pi.seconds)} · Overall: ${fmtDur(job.elapsed)}` : ''}\nImage: ${job.image}\n\nAuto-carve was off — when ready, click "🧩 Step 2: Start Carving (from image)" to extract all files.`;
+        } else {
+          status.style.color = '#10b981';
+          status.innerText = `✔ Recovery complete!\nImage: ${job.image}\nFiles carved: ${job.files_recovered != null ? job.files_recovered : 'n/a'}\nFile types: ${job.file_types && job.file_types.length ? job.file_types.join(', ') : 'all'}\nCarved folder: ${job.recup_dir}.1, .2, …\n${timeLine}`
+            + (job.set_aside ? `\nUnselected Office/zip files set aside: ${job.set_aside.count} → ${job.set_aside.folder}` : '')
+            + `\n\nTip: files keep their content but generic names (f1234567.jpg). For ORIGINAL filenames use "🛠️ Open TestDisk (original names)".`;
+        }
+        loadToolsStatus();
+      }
+      return false;
+    }
+
+    function pollRecovery() {
+      clearTimeout(recoveryPollTimer);
+      if (recoveryStream) return;
+      const status = document.getElementById('recovery-status');
+      apiFetch('/api/recovery_progress')
+        .then(res => res.json())
+        .then(job => {
+          const active = applyRecoverySnapshot(job);
+          if (active) recoveryPollTimer = setTimeout(pollRecovery, 2000);
+        })
+        .catch(err => {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Lost backend connection during polling. The recovery tool may still be running inside WSL2.');
+        });
+    }
+
+    function initRecoveryState() {
+      apiFetch('/api/recovery_progress')
+        .then(res => res.json())
+        .then(job => {
+          // Point the field at the real image from the last run so TestDisk, Step 2
+          // carving and Open Folder work right after a reload. A finished run must NOT
+          // lock the path, or the next run would resume a complete image and silently
+          // copy nothing; an interrupted one must lock it, so ddrescue continues it.
+          if (job.image && ['cancelled', 'partial', 'failed', 'completed'].includes(job.stage)) {
+            const out = document.getElementById('rescue-output');
+            if (out) {
+              out.value = job.image;
+              rescueOutputTouched = job.stage !== 'completed';
+              generateRescueCommands();
+            }
+          }
+          if (job.active && job.id) {
+            startRecoveryStream(job.id, '/api/jobs/' + job.id + '/events');
+            applyRecoverySnapshot(job);
+          } else {
+            applyRecoverySnapshot(job);
+          }
+        })
+        .catch(() => {});
+    }
+
+    function cancelRecovery() {
+      const status = document.getElementById('recovery-status');
+      apiFetch('/api/recovery_cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        .then(res => res.json())
+        .then(data => {
+          status.style.display = 'block';
+          status.style.color = data.success ? '#f59e0b' : '#ef4444';
+          status.innerText = (data.success ? '⏹️ ' : '✖ ') + (data.message || data.error)
+            + (data.image ? `\nResume path kept in the output field: ${data.image}` : '');
+          if (data.success && data.image) {
+            const out = document.getElementById('rescue-output');
+            if (out) { out.value = data.image; rescueOutputTouched = true; generateRescueCommands(); }
+          }
+        })
+        .catch(err => {
+          status.style.display = 'block';
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Backend offline — nothing to cancel.');
+        });
+    }
+
+    function launchTestDisk() {
+      const status = document.getElementById('recovery-status');
+      const image = (document.getElementById('rescue-output')?.value || '').trim();
+      status.style.display = 'block';
+      status.style.color = '#38bdf8';
+      status.innerText = '⏳ Launching TestDisk in a new console window...';
+      apiFetch('/api/testdisk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: image }) })
+        .then(res => res.json())
+        .then(data => {
+          status.style.color = data.success ? '#10b981' : '#ef4444';
+          status.innerText = (data.success ? '✔ ' : '✖ ') + (data.message || data.error);
+        })
+        .catch(err => {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Backend offline — run start_studio.bat first, then retry.');
+        });
+    }
+
+    function openRecoveryFolder() {
+      const status = document.getElementById('recovery-status');
+      const image = (document.getElementById('rescue-output')?.value || '').trim();
+      const recup = getRecupDir(image).replace(/"/g, '');
+      const folder = recup.replace(/[\\/][^\\/]+$/, '') || recup;
+      apiFetch('/api/open_folder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: folder }) })
+        .then(res => res.json())
+        .then(data => {
+          status.style.display = 'block';
+          status.style.color = data.success ? '#10b981' : '#ef4444';
+          status.innerText = (data.success ? '✔ ' : '✖ ') + (data.message || data.error);
+        })
+        .catch(err => {
+          status.style.display = 'block';
+          status.style.color = '#f59e0b';
+          status.innerText = `⚠️ ${err.message || 'Backend offline'} — open the folder manually: ${folder}`;
+        });
+    }
+
+    function renderRepairRow(r) {
+      const row = document.getElementById('rprog-repair');
+      if (!row) return;
+      const box = document.getElementById('recovery-progress');
+      if (box) box.style.display = 'block';
+      const timeline = document.getElementById('stage-timeline');
+      if (timeline) timeline.style.display = 'none';
+      ['imaging', 'carving'].forEach(key => {
+        const other = document.getElementById('rprog-' + key);
+        if (other) other.style.display = 'none';
+      });
+      row.style.display = 'block';
+      row.dataset.state = r.state;
+      row.querySelector('.rprog-fill').style.width = (r.pct == null ? 0 : Math.max(0, Math.min(100, r.pct))) + '%';
+      row.querySelector('.rprog-pct').textContent = r.pct == null ? (r.state === 'running' ? 'starting…' : '—') : r.pct.toFixed(r.pct >= 100 ? 0 : 2) + '%';
+      row.querySelector('.rprog-detail').textContent = r.detail || '';
+    }
+
+    function applyRepairSnapshot(job) {
+      if (!job) return false;
+      seedLiveLog(job.log);
+      const running = job.active;
+      const detail = `processed ${job.processed || 0}/${job.total || 0}  ·  clean ${job.clean || 0}  ·  salvaged ${job.salvaged || 0}  ·  rebuilt ${job.rebuilt || 0}  ·  hopeless ${job.hopeless || 0}` + (running ? `  ·  ${job.elapsed}s` : '');
+      renderRepairRow({ state: running ? 'running' : (job.stage || 'idle'), pct: job.pct, detail });
+      const status = document.getElementById('recovery-status');
+      if (!status) return running;
+      if (running) {
+        status.style.display = 'block';
+        status.style.color = '#38bdf8';
+        status.innerText = `🔧 Repairing videos (Step 3)  ·  ${job.elapsed}s  ·  ${job.pct != null ? job.pct.toFixed(1) + '%' : ''}\n${detail}\nOutput: ${job.out_dir}`;
+        return true;
+      }
+      if (job.stage && job.stage !== 'idle') {
+        status.style.display = 'block';
+        const tail = `\nRepaired clips are in: ${job.out_dir}\nOriginals were left untouched. REBUILT = headerless carves whose index untrunc reconstructed from a same-camera reference (needs untrunc installed). HOPELESS files were corrupt from the first frame and are unrecoverable.`;
+        if (job.stage === 'failed' || job.error) {
+          status.style.color = '#ef4444';
+          status.innerText = '✖ Repair failed: ' + (job.error || 'unknown error') + `\n${detail}` + (job.out_dir ? `\nOutput: ${job.out_dir}` : '');
+        } else if (job.stage === 'cancelled') {
+          status.style.color = '#f59e0b';
+          status.innerText = `⏹️ Repair cancelled. Files already salvaged are kept.\n${detail}\nOutput: ${job.out_dir}`;
+        } else if (job.stage === 'partial') {
+          status.style.color = '#f59e0b';
+          status.innerText = `⚠️ Repair finished with warnings — ${job.hopeless || 0} clip(s) were unrecoverable.\n${detail}` + tail;
+        } else {
+          status.style.color = '#10b981';
+          status.innerText = `✔ Repair complete!\n${detail}` + tail;
+        }
+      }
+      return false;
+    }
+
+    function pollRepair() {
+      clearTimeout(repairPollTimer);
+      if (repairStream) return;
+      apiFetch('/api/repair_progress')
+        .then(res => res.json())
+        .then(job => {
+          if (applyRepairSnapshot(job)) repairPollTimer = setTimeout(pollRepair, 2000);
+        })
+        .catch(err => {
+          const s = document.getElementById('recovery-status');
+          s.style.color = '#f59e0b';
+          s.innerText = '⚠️ ' + (err.message || 'Lost backend connection during repair polling. ffmpeg may still be running.');
+        });
+    }
+
+    function startRepairStream(jobId, eventsUrl) {
+      closeRepairStream();
+      clearTimeout(repairPollTimer);
+      if (!jobId || !eventsUrl || typeof EventSource === 'undefined') return false;
+      if (repairStreamJob !== jobId) {
+        repairStreamJob = jobId;
+        repairLastEventId = 0;
+        repairReconnects = 0;
+        liveLogLines = [];
+      }
+      const stream = new EventSource(jobStreamUrl(eventsUrl, repairLastEventId, sseToken()));
+      repairStream = stream;
+
+      const track = event => {
+        const id = Number(event.lastEventId);
+        if (id) repairLastEventId = id;
+      };
+      stream.addEventListener('log', event => {
+        track(event);
+        try { appendLiveLog(JSON.parse(event.data).message); } catch (err) { /* ignore malformed frame */ }
+      });
+      stream.addEventListener('state', event => {
+        track(event);
+        repairReconnects = 0;
+        try {
+          const job = JSON.parse(event.data);
+          if (job && job.id === jobId) applyRepairSnapshot(job);
+        } catch (err) { /* ignore malformed frame */ }
+      });
+      stream.addEventListener('end', () => {
+        closeRepairStream();
+        pollRepair();
+      });
+      stream.onerror = () => {
+        closeRepairStream();
+        repairReconnects += 1;
+        if (repairReconnects <= 4) {
+          const delay = 1000 * repairReconnects;
+          setTimeout(() => { if (!repairStream) startRepairStream(jobId, eventsUrl); }, delay);
+        } else {
+          pollRepair();
+        }
+      };
+      return true;
+    }
+
+    function initRepairState() {
+      apiFetch('/api/repair_progress')
+        .then(res => res.json())
+        .then(job => {
+          if (job.active && job.id) {
+            startRepairStream(job.id, '/api/jobs/' + job.id + '/events');
+            applyRepairSnapshot(job);
+          } else if (job.stage && job.stage !== 'idle') {
+            applyRepairSnapshot(job);
+          }
+        })
+        .catch(() => {});
+    }
+
+    function runVideoRepair() {
+      const status = document.getElementById('recovery-status');
+      const live = document.getElementById('recovery-live-terminal');
+      const image = (document.getElementById('rescue-output')?.value || '').trim();
+      if (!image) {
+        status.style.display = 'block'; status.style.color = '#ef4444';
+        status.innerText = '✖ Set the image path first — the carved video folder beside it is what gets repaired.';
+        return;
+      }
+      status.style.display = 'block'; status.style.color = '#38bdf8';
+      status.innerText = `⏳ Scanning carved videos beside ${image} and repairing corrupt ones with ffmpeg...`;
+      renderRepairRow({ state: 'running', pct: 0, detail: 'scanning…' });
+      apiFetch('/api/repair_videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            status.style.color = '#ef4444';
+            status.innerText = '✖ ' + (data.error || 'Failed to start repair.');
+            renderRepairRow({ state: 'error', pct: null, detail: data.error || 'failed' });
+            return;
+          }
+          status.style.color = '#38bdf8';
+          status.innerText = `⏳ ${data.message}\nOutput folder: ${data.out_dir}`;
+          if (!startRepairStream(data.job_id, data.events_url)) pollRepair();
+        })
+        .catch(err => {
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ ' + (err.message || 'Backend connection error — make sure the backend is running.');
+        });
+    }
+
+    function cancelRepair() {
+      const status = document.getElementById('recovery-status');
+      apiFetch('/api/repair_cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        .then(res => res.json())
+        .then(data => {
+          status.style.display = 'block';
+          status.style.color = data.success ? '#f59e0b' : '#ef4444';
+          status.innerText = (data.success ? '⏹️ ' : '✖ ') + (data.message || data.error);
+        })
+        .catch(() => {
+          status.style.display = 'block';
+          status.style.color = '#f59e0b';
+          status.innerText = '⚠️ Backend offline — nothing to cancel.';
+        });
+    }
+
+    function generateTranscodeCommand() {
+      const input = (document.getElementById('trans-input')?.value || '').trim();
+      const output = (document.getElementById('trans-output')?.value || '').trim();
+      const codec = document.getElementById('trans-codec')?.value || 'nvenc_h265_10bit';
+      const cq = document.getElementById('trans-cq')?.value || '18';
+
+      const cmd = `HandBrakeCLI -i "${input}" -o "${output}" -e ${codec} -q ${cq} --encoder-preset slow --comb-detect --decomb -f mp4 --aencoder av_aac`;
+      const term = document.getElementById('trans-terminal');
+      if (term) term.innerText = cmd;
+    }
+
+    function runCutApi() {
+      const statusDiv = document.getElementById('cut-api-status');
+      if (!statusDiv) return;
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#38bdf8';
+      statusDiv.innerText = '⏳ Executing video cut via the local backend... Please wait...';
+      setMediaRunning('cut-cancel', true);
+
+      const payload = {
+        input: (document.getElementById('cut-input')?.value || '').trim(),
+        output: (document.getElementById('cut-output')?.value || '').trim(),
+        start: (document.getElementById('cut-start')?.value || '').trim(),
+        end: (document.getElementById('cut-end')?.value || '').trim(),
+        mode: document.querySelector('input[name="cut-mode"]:checked')?.value || 'copy'
+      };
+
+      apiFetch('/api/cut', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.cancelled) {
+          statusDiv.style.color = '#f59e0b';
+          statusDiv.innerText = '⏹️ Cut cancelled. No output file was written; the input is untouched.';
+        } else if (data.success) {
+          statusDiv.style.color = '#10b981';
+          statusDiv.innerText = '✔ ' + data.message + '\nOutput File: ' + (data.output_file || payload.output) + '\nCommand Executed: ' + data.command;
+        } else {
+          statusDiv.style.color = '#ef4444';
+          statusDiv.innerText = '✖ Backend Execution Failed: ' + data.error + '\nCommand: ' + (data.command || '');
+        }
+      })
+      .catch(err => {
+        statusDiv.style.color = '#f59e0b';
+        statusDiv.innerText = '⚠️ ' + (err.message || 'Backend Connection Error: Make sure "python video_studio_backend.py" is running, then reload http://127.0.0.1:8080/.');
+      })
+      .finally(() => setMediaRunning('cut-cancel', false));
+    }
+
+    // Attach real-time input event listeners for live dynamic updating as the user types
+    window.addEventListener('DOMContentLoaded', () => {
+      ['cut-input', 'cut-output', 'cut-start', 'cut-end'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', generateCutCommand);
+      });
+
+      document.querySelectorAll('input[name="cut-mode"]').forEach(radio => {
+        radio.addEventListener('change', generateCutCommand);
+      });
+
+      ['join-output'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', generateJoinCommand);
+      });
+
+      document.querySelectorAll('input[name="join-mode"]').forEach(radio => {
+        radio.addEventListener('change', generateJoinCommand);
+      });
+
+      const rescueOut = document.getElementById('rescue-output');
+      if (rescueOut) {
+        rescueOut.addEventListener('input', () => { rescueOutputTouched = true; generateRescueCommands(); });
+      }
+
+      const rescueSector = document.getElementById('rescue-sector');
+      if (rescueSector) rescueSector.addEventListener('change', generateRescueCommands);
+
+      document.querySelectorAll('input[name="rescue-mode"]').forEach(radio => {
+        radio.addEventListener('change', generateRescueCommands);
+      });
+
+      document.querySelectorAll('#carve-types input').forEach(box => {
+        box.addEventListener('change', onCarveTypeChange);
+      });
+      onCarveTypeChange();
+
+      ['trans-input', 'trans-output', 'trans-codec', 'trans-cq'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', generateTranscodeCommand);
+          el.addEventListener('change', generateTranscodeCommand);
+        }
+      });
+
+      // Run initial generations
+      generateCutCommand();
+      generateJoinCommand();
+      generateRescueCommands();
+      generateTranscodeCommand();
+      refreshWorkspaceVideos();
+
+      // Recovery tab: auto-detect drives, check WSL2 toolchain, resume polling if a job is running
+      detectDrives();
+      loadToolsStatus();
+      initRecoveryState();
+      initRepairState();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Backend runtime: layered FastAPI application (vs_app/)
+fastapi==0.128.8
+uvicorn==0.40.0
+pydantic==2.12.5
+aiosqlite==0.22.1
+
+# Optional desktop GUI (cd_recovery_tool.py)
+customtkinter==5.2.2

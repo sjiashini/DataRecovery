@@ -1,0 +1,15 @@
+Partition table type (auto): Intel
+
+Analyse Disk /mnt/c/PendriveRecovery/2026-10-21_18-11-19/pendrive_backup.img - 15 GB / 14 GiB - CHS 1937 255 63
+Geometry from i386 MBR: head=255 sector=63
+set_FAT_info: name from BS used
+Partition table type (auto): Intel
+
+Analyse Disk /mnt/c/PendriveRecovery/2026-10-21_18-11-19/pendrive_backup.img - 15 GB / 14 GiB - CHS 1937 255 63
+Geometry from i386 MBR: head=255 sector=63
+set_FAT_info: name from BS used
+Partition table type (auto): Intel
+
+Analyse Disk /mnt/c/PendriveRecovery/2026-10-22_17-09-07/pendrive_backup.img - 3965 MB / 3781 MiB - CHS 483 255 63
+Geometry from i386 MBR: head=255 sector=63
+set_FAT_info: name from BS used

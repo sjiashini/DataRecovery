@@ -1,0 +1,25 @@
+# Runtime state: per-launch API token, the live jobs.db, logs
+.runtime/
+
+# Local configuration with machine-specific paths (.env.example is the template)
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Environments and build output
+.venv/
+.venv-build/
+build/
+dist/
+
+# Recovered data never belongs in the repository
+*.img
+*.iso
+*.img.log
+*.source.json
+uploads/
+
+# TestDisk also writes a log into the working folder
+/testdisk.log

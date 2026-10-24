@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Step-by-step procedure for USB pen drive recovery and PhotoRec file carving in Video Studio (ddrescue + WSL2 + usbipd).">
+  <title>Recovery &amp; Carving — Step-by-Step Procedure | JIAMETRIC Technologies</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primaryColor: #2596be;
+      --secondaryColor: #5bc1da;
+      --tertiaryColor: #666666;
+      --quaternaryColor: #ebeaea;
+      --darkColor: #000000;
+      --lightColor: #ffffff;
+      --regularFont: 1.3rem;
+      --headingFont: 3.5rem;
+      --ffPrimary: "Playfair Display", serif;
+      --ffSecondary: "Inter", sans-serif;
+      --ffSubheading: "Bebas Neue", sans-serif;
+      --subheadingColor: #0c476f;
+      --ffCode: "JetBrains Mono", monospace;
+      --border: 1px solid var(--primaryColor);
+      --borderRadius: 0.5rem;
+      --primaryShadow: 0 4px 8px rgba(20, 71, 108, 0.15);
+      --secondaryShadow: 0 8px 16px rgba(20, 71, 108, 0.2);
+      --containerPaddingY: 2rem;
+      --containerPaddingX: 1.5rem;
+    }
+
+    html {
+      font-size: 62.5%;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--ffSecondary);
+      color: #333333;
+      background-color: #f8f9fb;
+    }
+
+    pre, pre code, code, .code-block { font-family: var(--ffCode), monospace !important; font-size: var(--regularFont); }
+
+    .page-wrapper { width: 1300px; margin: 0 auto; background-color: #eff2f7; min-height: 100vh; } @media (max-width: 1300px) { .page-wrapper { width: 100%; } }
+
+    .container { max-width: 1250px; margin: 0 auto; padding: var(--containerPaddingY) var(--containerPaddingX); } @media (max-width: 768px) { .container { max-width: 100%; padding-left: 1rem; padding-right: 1rem; } }
+
+    header { padding: 0; border-bottom: var(--border); } .header-top { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; } .header-top img { height: 40px; } .header-main { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--primaryColor) 0%, var(--secondaryColor) 100%); color: var(--lightColor); text-align: center; padding: 2rem 1rem; } .header-main::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M 24 0 L 0 0 0 24' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='0.5'/></svg>"); } .header-main h1 { position: relative; z-index: 1; margin: 0; font-size: var(--headingFont); font-family: var(--ffPrimary); } .header-main p { position: relative; z-index: 1; margin: 0.5rem 0 0; font-size: var(--regularFont); color: var(--quaternaryColor); opacity: 0.9; } .header-nav { display: flex; gap: 0.75rem; padding: 1rem 0; flex-wrap: wrap; justify-content: center; } .header-nav button { background-color: var(--secondaryColor); color: var(--darkColor); border: none; padding: 0.75rem 1.5rem; border-radius: var(--borderRadius); cursor: pointer; font-family: var(--ffSecondary); font-weight: 600; transition: background-color 0.2s; } .header-nav button:hover { background-color: var(--primaryColor); color: var(--lightColor); } @media (max-width: 768px) { .header-top { flex-direction: column; gap: 1rem; } .header-nav { justify-content: flex-start; } }
+
+    section { box-shadow: var(--primaryShadow); border-radius: var(--borderRadius); margin-bottom: 2.5rem; padding: 2rem; background: var(--lightColor); width: 100%; box-sizing: border-box; } @media (max-width: 768px) { section { padding: 1.5rem; } }
+
+    section h2 { font-family: var(--ffSubheading); font-size: 2.2rem; color: var(--subheadingColor); letter-spacing: 0.04em; font-weight: 400; margin-bottom: 1.5rem; padding-bottom: 0.3rem; display: inline; border-bottom: 1px solid #d8dbdc; }
+    section h2 + p, section h2 + ul, section h2 + ol, section h2 + .table-wrapper, section h2 + .code-block, section h2 + .prompt-quote, section h2 + .verdict { margin-top: 2.5rem; }
+
+    section h3, section h4, section h5, section h6 { font-family: var(--ffSubheading); color: var(--subheadingColor); letter-spacing: 0.04em; font-weight: 400; }
+    section h3 { font-size: 2rem; margin: 1.8rem 0 0.6rem; }
+    section h4 { font-size: 1.8rem; margin: 1.6rem 0 0.5rem; }
+    section h5 { font-size: 1.6rem; margin: 1.4rem 0 0.5rem; }
+    section h6 { font-size: 1.4rem; margin: 1.2rem 0 0.4rem; }
+
+    p { font-family: var(--ffSecondary); font-size: var(--regularFont); color: var(--tertiaryColor); margin: 1rem 0 0; }
+
+    .table-wrapper { width: 100%; overflow-x: auto; margin: 1.5rem 0; -webkit-overflow-scrolling: touch; }
+
+    table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: var(--regularFont); } th, td { text-align: left; padding: 1rem; border-bottom: 1px solid var(--tertiaryColor); } th { background-color: var(--secondaryColor); color: var(--darkColor); }
+
+    footer { background-color: var(--darkColor); color: var(--lightColor); padding: 1rem 0 1rem; margin-top: 3rem; } .footer-content { text-align: center; } p.copyright { margin: 1rem 0; font-family: var(--ffSecondary); font-size: 1.2rem; opacity: 0.8; color: var(--lightColor); } .social-links { margin-top: 1.5rem; } .social-links a { display: inline-block; margin: 0 1rem; color: #7f888b; text-decoration: none; font-weight: bold; opacity: 0.7; font-size: 1.2rem; transition: opacity 0.2s; font-family: var(--ffSecondary); } .social-links a i { color: #2596be; } .social-links a:hover { opacity: 1; text-decoration: underline; }
+
+    section[id] { scroll-margin-top: 2rem; }
+
+    a { font-family: var(--ffSecondary); color: var(--primaryColor); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--secondaryColor); text-decoration: underline; }
+
+    ul, ol { margin: 1rem 0 0; padding-left: 2.4rem; }
+    li { font-family: var(--ffSecondary); font-size: var(--regularFont); color: var(--tertiaryColor); line-height: 1.8; margin: 0.7rem 0; }
+    li::marker { color: var(--primaryColor); font-weight: 600; }
+    ol li::marker { font-family: var(--ffSubheading); font-size: 1.6rem; font-weight: 400; }
+    p strong, li strong, td strong { color: #333333; }
+
+    p code, li code, td code, a code, strong code {
+      background-color: rgba(37, 150, 190, 0.08);
+      border: 1px solid rgba(37, 150, 190, 0.3);
+      border-radius: 0.3rem;
+      padding: 0.1rem 0.45rem;
+      color: #0e5a77;
+    }
+
+    .code-block { margin: 1.8rem 0; border-radius: var(--borderRadius); overflow: hidden; background: #0f172a; }
+    .code-header { display: flex; justify-content: space-between; align-items: center; background: #1e293b; border-bottom: 1px solid #334155; padding: 0.7rem 1.2rem; }
+    .code-lang { font-family: var(--ffCode), monospace; font-size: 1.2rem; color: #94a3b8; font-weight: 600; letter-spacing: 0.08em; }
+    .copy-btn { background: #334155; color: #f8fafc; border: none; border-radius: 0.4rem; padding: 0.4rem 1rem; font-family: var(--ffSecondary); font-size: 1.2rem; cursor: pointer; transition: background 0.2s; }
+    .copy-btn:hover { background: var(--primaryColor); }
+    .copy-btn.copied { background: #10b981; }
+    .copy-btn i { margin-right: 0.5rem; }
+    .code-block pre { margin: 0; padding: 1.6rem; overflow-x: auto; background: #0f172a; }
+    .code-block pre code { color: #e2e8f0; background: none; text-shadow: none; display: block; line-height: 1.5; }
+
+    /* Prism token colors — JIAMETRIC customization */
+    .token.tag, .token.tag .token.tag, .token.doctype { color: #00CEC8 !important; }
+    .token.attr-name { color: #e1b5f7 !important; }
+    .token.attr-value, .token.string { color: #bfff00 !important; }
+    .token.selector, .token.class-name { color: #bfff00 !important; }
+    .token.comment, .token.prolog, .token.cdata { color: #687174 !important; font-style: italic; }
+
+    .verdict { margin-top: 1.8rem; padding: 1.6rem 1.8rem; background: linear-gradient(135deg, rgba(37, 150, 190, 0.07) 0%, rgba(91, 193, 218, 0.12) 100%); border-radius: var(--borderRadius); }
+    .verdict p { color: #333333; font-weight: 500; }
+
+    .prompt-quote { margin-top: 1.8rem; padding: 1.6rem 1.8rem; background: var(--quaternaryColor); border-radius: var(--borderRadius); }
+    .prompt-quote p { color: #333333; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <div class="container">
+
+      <header>
+        <div class="header-top">
+          <img class="company-logo" src="https://i.ibb.co/1GFKDLFf/logo-jiametric.png" alt="logo-jiametric" border="0" />
+        </div>
+        <div class="header-main">
+          <h1>Recovery &amp; Carving — Step-by-Step</h1>
+          <p>Pendrive imaging with ddrescue and PhotoRec file carving through the Video Studio recovery tab (WSL2 + usbipd)</p>
+        </div>
+        <nav class="header-nav">
+          <button onclick="scrollToSection('the-prompt')">The Prompt</button>
+          <button onclick="scrollToSection('step-0')">Step 0 · Prerequisites</button>
+          <button onclick="scrollToSection('step-1')">1 · Start</button>
+          <button onclick="scrollToSection('step-2')">2 · Plug In</button>
+          <button onclick="scrollToSection('step-3')">3 · Detect</button>
+          <button onclick="scrollToSection('step-4')">4 · Share</button>
+          <button onclick="scrollToSection('step-5')">5 · Configure</button>
+          <button onclick="scrollToSection('step-6')">6 · Run</button>
+          <button onclick="scrollToSection('step-7')">7 · TestDisk</button>
+          <button onclick="scrollToSection('step-8')">8 · Release</button>
+          <button onclick="scrollToSection('step-9')">9 · Verify</button>
+          <button onclick="scrollToSection('space')">Space Warning</button>
+        </nav>
+      </header>
+
+      <main>
+
+        <section id="the-prompt">
+          <h2>The Prompt</h2>
+          <div class="prompt-quote">
+            <p>"Ok Give me Proper Step Step by Procedure for Recovery and Carving"</p>
+          </div>
+        </section>
+
+        <section id="step-0">
+          <h2>Step 0 — Prerequisites (all already true on this machine)</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Check</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>usbipd-win 5.3.0</td>
+                  <td>installed, <code>4-9</code> already bound</td>
+                </tr>
+                <tr>
+                  <td>WSL distro <code>Ubuntu</code></td>
+                  <td>registered, default</td>
+                </tr>
+                <tr>
+                  <td><code>ddrescue</code> / <code>photorec</code> / <code>testdisk</code></td>
+                  <td>installed at <code>/usr/bin/</code></td>
+                </tr>
+                <tr>
+                  <td>raw device read permission</td>
+                  <td><code>aditss</code> is in <code>disk</code> group — <strong>no sudo needed</strong></td>
+                </tr>
+                <tr>
+                  <td>free space on C:</td>
+                  <td><strong>64.7 GB</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="step-1">
+          <h2>Step 1 — Start the app</h2>
+          <p><code>start_studio.bat</code>, or <code>python video_studio_backend.py --open-browser</code>. Always open the served page at <a href="http://127.0.0.1:8080/">http://127.0.0.1:8080/</a> — never the <code>.html</code> file, or every API call fails with a token error.</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Bash</span>
+              <button class="copy-btn" onclick="copyCode(this)"><i class="far fa-clipboard"></i> <span>Copy</span></button>
+            </div>
+            <pre><code class="language-bash">python video_studio_backend.py --open-browser</code></pre>
+          </div>
+        </section>
+
+        <section id="step-2">
+          <h2>Step 2 — Plug in and stop touching the drive</h2>
+          <p>Every write to it destroys recoverable data. Don't let Windows format or mount it.</p>
+        </section>
+
+        <section id="step-3">
+          <h2>Step 3 — Detect Drives</h2>
+          <p>Open <strong>💿💾 CD/DVD &amp; Pen Drive Recovery</strong> → click <strong>🔄 Detect Drives</strong>. Two outcomes:</p>
+          <ul>
+            <li><code>✔ 1 drive(s) detected</code> naming <code>/dev/sde</code> → go to Step 5.</li>
+            <li>A <code>🔗 4-9</code> button appears → the drive is visible to Windows but not in WSL.</li>
+          </ul>
+        </section>
+
+        <section id="step-4">
+          <h2>Step 4 — Share (only if 🔗 appeared)</h2>
+          <p>Click <strong>🔗 4-9</strong>. Approve the UAC prompt if one shows — it won't for this port, since bind persists across reboots. The app binds, waits for WSL, attaches, and polls <code>lsblk</code> until the disk is genuinely enumerable. Then <strong>Detect Drives</strong> again.</p>
+        </section>
+
+        <section id="step-5">
+          <h2>Step 5 — Configure</h2>
+          <ul>
+            <li><strong>Output Raw Image Path:</strong> <code>C:\PendriveRecovery\&lt;name&gt;.img</code>. <strong>Never</strong> a path on the drive being recovered.</li>
+            <li><strong>Sector Size:</strong> <code>Auto</code> — it correctly detected 512 B for your drive.</li>
+            <li><strong>Mode:</strong> <code>Normal Recovery</code> first. Only switch to <code>Aggressive</code> if the ddrescue log shows bad sectors.</li>
+            <li><strong>Carve checkbox:</strong> leave ticked for a one-shot run; untick to image now and carve later via Step 2.</li>
+            <li><strong>File types:</strong> untick <em>🌐 All file types</em> and tick only what you need. Scanning for every signature on a 15.9 GB image is much slower and produces far more junk.</li>
+          </ul>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Plain Text</span>
+              <button class="copy-btn" onclick="copyCode(this)"><i class="far fa-clipboard"></i> <span>Copy</span></button>
+            </div>
+            <pre><code class="language-none">C:\PendriveRecovery\pendrive_backup.img</code></pre>
+          </div>
+        </section>
+
+        <section id="step-6">
+          <h2>Step 6 — Run</h2>
+          <p>Click <strong>🚀 Run Full Recovery (Image + Carve)</strong>. It runs ddrescue → TestDisk → PhotoRec and streams progress. <strong>⏹️ Cancel</strong> stops it. Keep the app open.</p>
+          <p>Critical: the <code>.img.log</code> mapfile lets ddrescue <strong>resume</strong> — if a run dies, re-run with the same output path and it continues where it stopped. Don't delete <code>.img.log</code> until you're done.</p>
+        </section>
+
+        <section id="step-7">
+          <h2>Step 7 — Optional: original filenames</h2>
+          <p>PhotoRec recovers content but <strong>not names</strong>. If the filesystem is merely corrupted rather than wiped, click <strong>🛠️ Open TestDisk (original names)</strong> — that can restore real filenames and folders.</p>
+        </section>
+
+        <section id="step-8">
+          <h2>Step 8 — Release the drive</h2>
+          <p>Wait for "Recovery completed", then click <strong>⏏ 4-9</strong> under the device dropdown. No cooling period — the pipeline never writes to the pen drive. Until you click it, the drive stays hidden from This PC by design.</p>
+        </section>
+
+        <section id="step-9">
+          <h2>Step 9 — Verify before wiping anything</h2>
+          <p><code>C:\PendriveRecovery\&lt;timestamp&gt;\</code> holds <code>pendrive_backup.img</code> + <code>carved.1\</code>, <code>.2\</code>… Open a few recovered files first. Only then reformat the drive.</p>
+        </section>
+
+        <section id="space">
+          <h2>One space warning</h2>
+          <p>Your last run left 18 GB in <code>2026-10-21_18-11-19</code> and 15 GB in the older <code>VS-Test-2026-10-20_1958</code> — 33 GB of the 64.7 GB free. A repeat run needs roughly 30 GB, which fits but leaves little margin. Delete the <code>VS-Test-*</code> folder or point output at <code>D:\PendriveRecovery</code> (also an allowed root, 73 GB free).</p>
+          <div class="verdict">
+            <p>Right now the drive is <strong>attached to WSL</strong> from my testing, so it won't appear in This PC until you click ⏏ — or just start at Step 3, since it's already shared and ready.</p>
+          </div>
+        </section>
+
+      </main>
+
+      <footer>
+        <div class="footer-content">
+          <p class="copyright">© 2026 JIAMETRIC Technologies. All rights reserved.</p>
+          <div class="social-links">
+            <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i> Twitter</a>
+            <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin"></i> LinkedIn</a>
+            <a href="https://youtube.com" target="_blank"><i class="fab fa-youtube"></i> YouTube</a>
+            <a href="https://instagram.com" target="_blank"><i class="fab fa-instagram"></i> Instagram</a>
+            <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <!-- Autoloader: auto-fetches the grammar (bash, python, json, ...) for every language-* class -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script>
+    function scrollToSection(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function copyCode(btn) {
+      var block = btn.closest('.code-block');
+      var codeEl = block ? (block.querySelector('pre code') || block.querySelector('pre')) : null;
+      if (!codeEl) return;
+      var text = codeEl.innerText;
+
+      var markCopied = function () {
+        var icon = btn.querySelector('i');
+        var label = btn.querySelector('span');
+        if (icon) icon.className = 'fas fa-circle-check';
+        if (label) label.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          if (icon) icon.className = 'far fa-clipboard';
+          if (label) label.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      };
+
+      var fallbackCopy = function () {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          document.execCommand('copy');
+          markCopied();
+        } catch (err) {
+          var label = btn.querySelector('span');
+          if (label) label.textContent = 'Press Ctrl+C';
+        }
+        document.body.removeChild(ta);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(markCopied).catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    }
+  </script>
+</body>
+</html>
