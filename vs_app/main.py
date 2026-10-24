@@ -141,10 +141,13 @@ async def lifespan(app):
     token_file.write_private_file(settings.SETTINGS.token_path, settings.token() + '\n')
     await runtime.STORE.open()
     interrupted = await runtime.STORE.mark_interrupted()
+    pruned = await runtime.STORE.prune()
     await runtime.JOBS.start()
     LOGGER.info('Jobs database: %s', runtime.STORE.path)
     if interrupted:
         LOGGER.warning('%s interrupted job(s) marked failed at startup', interrupted)
+    if pruned:
+        LOGGER.info('Pruned %s old job(s) and their events from the history', pruned)
     await asyncio.to_thread(bridge.reap_orphan_keepalive)
     await asyncio.to_thread(bridge.ensure_wsl_alive)
     await asyncio.to_thread(adapters.reap_orphan_tools)

@@ -27,6 +27,15 @@ if errorlevel 1 (
 )
 
 echo.
+echo Checking the code before building (compile, lint, unit tests)...
+"%VENV%\Scripts\python.exe" "%~dp0scripts\check.py" --quick
+if errorlevel 1 (
+    echo [ERROR] Checks failed - no exe was built. Fix the failures above and retry.
+    pause
+    exit /b 1
+)
+
+echo.
 echo Building from video_studio_backend.spec (folder build, .env not bundled)...
 pushd "%~dp0"
 "%VENV%\Scripts\python.exe" -m PyInstaller --noconfirm --clean "video_studio_backend.spec"

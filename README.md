@@ -124,7 +124,8 @@ Installing WSL itself needs an admin PowerShell and a reboot (`wsl --install`), 
 | **Set Up Everything** | Windows CMD / Explorer | `setup_studio.bat` (`-CheckOnly` to only report) | Installs or verifies WSL tools, Windows media tools and the locked Python packages. |
 | **Build Backend EXE** | Windows CMD / PowerShell | `build_exe.bat` | Builds in a private `.venv-build` from the hash-locked `requirements-dev.lock`. Output is a folder, `dist\video_studio_backend\`, holding the exe and its `_internal` files. `.env` is never bundled; put one next to the exe to configure it. |
 | **Run Tests** | Project root | `python -m unittest discover -s tests -v` | Pure policy/config/job/store/pipeline/parser/media tests (no device access). |
-| **Check a Change** | Project root | `python scripts/check.py` (`--quick`, `--exe`) | Compiles, runs the tests and smoke-tests a live backend on a free port with a throwaway runtime folder; `--exe` also builds and starts the exe. |
+| **Check a Change** | Project root | `python scripts/check.py` (`--quick`, `--exe`) | Compiles, lints (ruff, when installed from `requirements-dev.lock`), runs the tests and smoke-tests a live backend on a free port with a throwaway runtime folder; `--exe` also builds and starts the exe. CI runs `--quick` on every push. |
+| **Publish a Release** | Project root | `git tag v3.1.0` then `git push origin v3.1.0` | GitHub Actions checks the code, builds the folder exe and attaches it as a zip to a new GitHub release. |
 | **Relock Dependencies** | Project root | `python scripts/lock_deps.py` (`--upgrade-package <name>`) | Rebuilds both hash-checked lock files from `requirements*.txt` with `uv` and lists every pin that changed. |
 
 ---
@@ -221,7 +222,9 @@ VideoStudio-V3/
 │   ├── setup_studio.ps1             # The setup logic behind setup_studio.bat
 │   ├── check.py                     # One-command verification (compile, tests, smoke, exe)
 │   └── lock_deps.py                 # Regenerates both dependency locks
-├── tests/                           # unittest suite (150 tests, no device access)
+├── tests/                           # unittest suite (163 tests, no device access)
+├── .github/workflows/               # ci.yml (Windows + Linux, Python 3.10 and 3.14) and release.yml
+├── ruff.toml                        # Lint settings (target Python 3.10)
 ├── docs/
 │   ├── archive/                     # Historical reports and logs (not runtime code)
 │   └── design/                      # UI theme notes
@@ -260,6 +263,9 @@ Copy [`.env.example`](.env.example) to `.env`. For the packaged exe, put the `.e
 * All `/api` routes require the token except `/api/health` and the page itself. The SSE endpoint also accepts `?token=` (EventSource cannot set headers); the API guard rate-limits requests per client and rejects unknown paths.
 * Device operations accept only `/dev/sd*`, `/dev/sr*`, `/dev/mmcblk*`, `/dev/nvme*` nodes that `lsblk` currently enumerates as optical/USB storage. Output paths must resolve inside configured roots.
 * Cut, join and transcode run as `media` jobs under the `ENCODER` lock, so they can run while a drive is being imaged or carved (which holds the `RECOVERY` lock); repair takes both. A media output may not be saved into the folder of the recovery that is running. `POST /api/media_cancel` (or the Cancel button under Cut and Join) stops the running ffmpeg/HandBrakeCLI and removes the partial output; `GET /api/media_progress` shows the current one. The response of `/api/cut`, `/api/join` and `/api/transcode` keeps its old shape, plus `job_id`.
+* Before imaging, the backend (and the desktop GUI) checks the destination drive has room for the rest of the image plus 0.5 GB, and refuses with both numbers if not.
+* If job history can't be saved (for example a full disk), the job shows a one-time warning and keeps running. The jobs database carries a schema version (`PRAGMA user_version`) and keeps the newest 200 finished jobs, pruning older ones at startup.
+* Every log line names its job (`job=ad773fc2`; `job=-` outside a job), and each job logs when it starts and how it ends.
 * Every external command is an argv list (no `shell=True`, no string interpolation of paths or bus IDs). Media outputs are written to `.__vs_partial__` files and atomically renamed.
 * Cancellation targets the exact pidfile-wrapped child (`SIGINT`, then `SIGTERM`); it never uses `pkill`. ddrescue's mapfile and the image are preserved for resume.
 * The `RECOVERY` lock (`vs_app/orchestration/gate.py`) allows one recovery at a time, and the `ENCODER` lock one cut/join/transcode at a time; jobs report `completed`, `partial`, `failed` or `cancelled` explicitly. Job snapshots and their numbered events are persisted to `.runtime/jobs.db`; jobs left running by a crash are marked `failed` on the next start.

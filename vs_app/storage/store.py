@@ -30,6 +30,19 @@ CREATE TABLE IF NOT EXISTS events (
 );
 """
 
+# The schema above is version 1. To change it, add MIGRATIONS[n] (SQL that turns
+# version n-1 into version n) and raise SCHEMA_VERSION to n; never edit SCHEMA for
+# existing columns, because databases already on disk won't re-run it.
+SCHEMA_VERSION = 1
+MIGRATIONS = {}
+
+# Finished jobs kept in history; older ones and their events are pruned at startup.
+KEEP_JOBS = 200
+
+
+class NewerSchemaError(RuntimeError):
+    pass
+
 
 class JobStore:
     def __init__(self, path):
@@ -45,8 +58,40 @@ class JobStore:
         await self._db.execute('PRAGMA journal_mode=WAL')
         await self._db.execute('PRAGMA synchronous=NORMAL')
         await self._db.executescript(SCHEMA)
+        await self._migrate()
         await self._db.commit()
         return self
+
+    async def _migrate(self):
+        cursor = await self._db.execute('PRAGMA user_version')
+        version = (await cursor.fetchone())[0]
+        await cursor.close()
+        if version > SCHEMA_VERSION:
+            raise NewerSchemaError(
+                f'{self.path} was written by a newer Video Studio (schema {version}); this '
+                f'version understands up to {SCHEMA_VERSION}. Use the newer version, or move '
+                'jobs.db aside to start a fresh history.')
+        # A database with no version (0) predates versioning and matches version 1.
+        for target in range(max(version, 1) + 1, SCHEMA_VERSION + 1):
+            await self._db.executescript(MIGRATIONS[target])
+        await self._db.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+
+    async def prune(self, keep=KEEP_JOBS):
+        """Drop finished jobs beyond the newest `keep`, and every event left without a job."""
+        cursor = await self._db.execute(
+            "DELETE FROM jobs WHERE status NOT IN ('queued','running') AND id NOT IN "
+            '(SELECT id FROM jobs ORDER BY created DESC LIMIT ?)', (keep,))
+        removed = cursor.rowcount
+        await cursor.close()
+        await self._db.execute('DELETE FROM events WHERE job_id NOT IN (SELECT id FROM jobs)')
+        await self._db.commit()
+        return removed
+
+    async def schema_version(self):
+        cursor = await self._db.execute('PRAGMA user_version')
+        version = (await cursor.fetchone())[0]
+        await cursor.close()
+        return version
 
     async def close(self):
         if self._db is not None:

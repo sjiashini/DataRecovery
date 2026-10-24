@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import json
+import shutil
 import subprocess
 import sys
 import threading
@@ -21,6 +22,7 @@ from vs_app.core.recovery import (
     parse_lsblk_pairs,
     source_mismatch,
     source_mismatch_error,
+    space_problem,
 )
 
 ctk.set_appearance_mode("dark")
@@ -62,6 +64,11 @@ def check_image_source(image, device):
         reason = source_mismatch(saved, identity, extent)
         if reason:
             raise RuntimeError(source_mismatch_error(image, reason))
+    existing = os.path.getsize(image) if os.path.isfile(image) else 0
+    reason = space_problem(identity.get("size"), existing,
+                           shutil.disk_usage(os.path.dirname(image) or ".").free)
+    if reason:
+        raise RuntimeError(reason)
     if not saved:
         with open(record_path, "w", encoding="utf-8") as handle:
             json.dump(dict(identity, device=device), handle, indent=2)

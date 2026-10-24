@@ -2,7 +2,7 @@
 """Verify a change in one command: compile, unit tests, a live smoke test, optional exe.
 
     python scripts/check.py          compile + tests + smoke server
-    python scripts/check.py --quick  compile + tests only
+    python scripts/check.py --quick  compile + lint + tests only
     python scripts/check.py --exe    also build the folder exe and start it
 
 The smoke server and the exe run on a free port with a throwaway runtime folder, so the
@@ -107,6 +107,16 @@ def probe_server(port, runtime_dir):
     return problems
 
 
+def step_lint():
+    """ruff with ruff.toml; skipped (not failed) when ruff isn't installed."""
+    if run([PYTHON, '-m', 'ruff', '--version']).returncode != 0:
+        return None, 'ruff not installed (python -m pip install --require-hashes -r requirements-dev.lock)'
+    result = run([PYTHON, '-m', 'ruff', 'check', 'vs_app', 'clients', 'scripts', 'tests',
+                  'video_studio_backend.py'])
+    output = (result.stdout + result.stderr).strip()
+    return result.returncode == 0, output[-2500:] if result.returncode else 'no lint findings'
+
+
 def step_compile():
     targets = ['vs_app', 'clients', 'tests', 'scripts', 'video_studio_backend.py']
     result = run([PYTHON, '-m', 'compileall', '-q'] + targets)
@@ -185,7 +195,7 @@ def main(argv=None):
     parser.add_argument('--exe', action='store_true', help='also build and start the exe')
     args = parser.parse_args(argv)
 
-    steps = [('compile', step_compile), ('unit tests', step_tests)]
+    steps = [('compile', step_compile), ('lint', step_lint), ('unit tests', step_tests)]
     if not args.quick:
         steps.append(('smoke server', step_smoke))
     if args.exe:
@@ -198,8 +208,9 @@ def main(argv=None):
             ok, detail = step()
         except Exception as exc:
             ok, detail = False, f'{exc.__class__.__name__}: {exc}'
-        failed = failed or not ok
-        print(f"{'PASS' if ok else 'FAIL'}  {name:<13} {time.time() - started:5.1f}s  {detail}",
+        failed = failed or ok is False
+        label = 'SKIP' if ok is None else 'PASS' if ok else 'FAIL'
+        print(f"{label}  {name:<13} {time.time() - started:5.1f}s  {detail}",
               flush=True)
     for cache in ('vs_app', 'clients', 'tests', 'scripts'):
         for base, dirs, _files in os.walk(os.path.join(ROOT, cache)):

@@ -1,0 +1,30 @@
+# Compile, lint and unit-test every push and pull request, on the oldest and newest
+# supported Python, on Windows (where the app runs) and Linux (where WSL tools run).
+# The live smoke test needs WSL and real tools, so CI runs `check.py --quick`.
+name: CI
+
+on:
+  push:          # every branch, so work branches are checked before they reach main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install locked dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Compile, lint and unit tests
+        run: python scripts/check.py --quick

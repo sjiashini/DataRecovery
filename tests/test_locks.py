@@ -26,7 +26,7 @@ class GateTests(unittest.TestCase):
     def test_repair_flow_releases_both_locks(self):
         self.assertTrue(try_acquire_all(RECOVERY, ENCODER))
         with mock.patch('vs_app.orchestration.flows.repair_worker'):
-            asyncio.run(repair_flow(mock.Mock(), [], 'ffmpeg', 'ffprobe', 'out'))
+            asyncio.run(repair_flow(mock.Mock(id='a' * 32), [], 'ffmpeg', 'ffprobe', 'out'))
         self.assertTrue(try_acquire_all(RECOVERY, ENCODER))
 
 

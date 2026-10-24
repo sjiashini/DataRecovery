@@ -1,7 +1,7 @@
 """Non-blocking locks for the two resources long-running jobs compete for.
 
-RECOVERY  the source device, its image and its carve folders: recovery, the legacy
-          ddrescue/photorec routes, and repair (which reads carve output).
+RECOVERY  the source device, its image and its carve folders: recovery, and repair
+          (which reads carve output).
 ENCODER   ffmpeg/HandBrakeCLI work: cut, join, transcode, and repair.
 
 Imaging a drive and transcoding a video use different resources, so they may run

@@ -1,0 +1,2 @@
+# Settings for `ruff check` (run by scripts/check.py and CI). Rules are ruff's defaults.
+target-version = "py310"

@@ -16,7 +16,10 @@ The data it recovers is often irreplaceable, and every extra read wears a failin
 - `clients/` desktop GUI (runs inside WSL) and `watch_and_carve.py` · `scripts/` · `tests/`
 
 ## Commands
-- Verify a change: `python scripts/check.py` (add `--exe` to also build and start the exe)
+- Verify a change: `python scripts/check.py` (compile, lint, tests, live smoke; `--quick`
+  skips the smoke test, `--exe` also builds and starts the exe). CI runs `--quick` on
+  Windows and Linux with Python 3.10 and 3.14; keep code valid on 3.10.
+- Release: push a `v*` tag; `.github/workflows/release.yml` builds and publishes the exe
 - Tests only: `python -m unittest discover -s tests`
 - Start the app: `start_studio.bat` · Setup/report tools: `setup_studio.bat [-CheckOnly]`
 - Relock dependencies: `python scripts/lock_deps.py` (see the `/update-deps` skill)
@@ -39,9 +42,9 @@ The data it recovers is often irreplaceable, and every extra read wears a failin
 8. Layers: `core/` has no I/O or side effects (the GUI imports it inside WSL). `api/`
    validates and delegates. Long-running work runs as a job through `JobManager` and
    holds its lock from `gate.py`, released in `finally`: `RECOVERY` for drive, image
-   and carve work, `ENCODER` for ffmpeg/HandBrake, both for repair (`try_acquire_all`). Only `execution/` starts subprocesses. Known
-   exceptions: the legacy `/api/ddrescue` and `/api/photorec` routes, and in
-   `api/routes/system.py` the `/api/tools` probe and the TestDisk console window.
+   and carve work, `ENCODER` for ffmpeg/HandBrake, both for repair (`try_acquire_all`).
+   Only `execution/` starts subprocesses. Known exceptions, in `api/routes/system.py`:
+   the `/api/tools` probe and the TestDisk console window.
 9. Never stop or restart a running backend without first checking that no recovery or
    repair job is active (`/api/recovery_progress`, `/api/repair_progress`).
 10. Never resume an image from a different source: imaging checks the image's
@@ -63,6 +66,8 @@ The data it recovers is often irreplaceable, and every extra read wears a failin
   folder (`VideoStudio-V3-backup-<what>-<date>.zip`).
 - Dependencies: edit `requirements*.txt` (direct deps only, pinned `==`), then relock.
   Never hand-edit the `.lock` files.
-- Python 3.10+ compatible (the locks are universal for 3.10+); this PC runs 3.14.
+- Python 3.10+ compatible (the locks are universal for 3.10+); this PC runs 3.14, so
+  3.12+-only syntax (like backslashes inside f-string expressions) slips through locally.
+- Database changes: add a `MIGRATIONS` entry and raise `SCHEMA_VERSION` in `storage/store.py`.
 - When files move, update the README folder tree and every path in it.
 - Match the surrounding code: comment density, naming, plain `unittest` tests.

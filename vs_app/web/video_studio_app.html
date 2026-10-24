@@ -1122,8 +1122,6 @@
             <li><code>POST /api/usbipd_bind</code> - Share/attach one USB storage bus ID with WSL2 (single UAC prompt, validated bus ID)</li>
             <li><code>POST /api/usbipd_release</code> - Detach one USB storage bus ID from WSL2 so Windows regains it and it shows in This PC again</li>
             <li><code>GET /api/tools</code> - WSL2 toolchain check (ddrescue / photorec / testdisk)</li>
-            <li><code>POST /api/ddrescue</code> - Execute GNU ddrescue drive scraping (auto 512B/2048B sectors)</li>
-            <li><code>POST /api/photorec</code> - Carve all files from an image with PhotoRec</li>
             <li><code>POST /api/recover_all</code> - Full async pipeline: image → carve (<code>GET /api/recovery_progress</code> to poll). Add <code>{"carve": false}</code> for imaging-only (Step 1), or <code>{"skip_imaging": true}</code> to carve an existing image (Step 2)</li>
             <li><code>POST /api/recovery_cancel</code> - Cleanly stop the running recovery (mapfile kept, resumable)</li>
             <li><code>POST /api/testdisk</code> - Open interactive TestDisk for undelete with original filenames</li>

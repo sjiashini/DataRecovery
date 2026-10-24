@@ -343,7 +343,7 @@ def open_folder(payload: OpenFolderRequest):
                 'error': f'Only available on the Windows host. Folder: {win_path}'}
     try:
         if os.path.isdir(win_path):
-            os.startfile(win_path)  # noqa: windows-only
+            os.startfile(win_path)  # Windows-only API
             return {'success': True, 'message': f'Opened {win_path}'}
         return {'success': False, 'error': f'Folder does not exist yet: {win_path}'}
     except Exception as exc:

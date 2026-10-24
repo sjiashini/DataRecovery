@@ -3,7 +3,6 @@
 import asyncio
 import os
 import posixpath
-import subprocess
 
 from fastapi import APIRouter
 
@@ -74,6 +73,9 @@ async def recover_all(payload: RecoverAllRequest):
                 sector = sector or await asyncio.to_thread(bridge.detect_sector_size, device)
             dd_argv = core.build_ddrescue_argv(device, image_wsl, payload.mode, sector)
             problem = await asyncio.to_thread(bridge.image_source_problem, image_wsl, device)
+            if problem:
+                raise policy.PolicyError(problem)
+            problem = await asyncio.to_thread(bridge.image_space_problem, image_wsl, device)
             if problem:
                 raise policy.PolicyError(problem)
 
@@ -258,106 +260,3 @@ async def repair_cancel():
     return {'success': True,
             'message': 'Cancellation requested. Files already repaired are kept.',
             'job_id': job.id}
-
-
-# --------------------------------------------------------------------------- #
-# Legacy single-tool endpoints (kept for scripts; prefer /recover_all)
-# --------------------------------------------------------------------------- #
-@router.post('/ddrescue')
-def ddrescue(payload: RecoverAllRequest):
-    try:
-        output = str(payload.output or '').strip()
-        policy.require_recovery_output(output, 'Output image')
-        device = policy.validate_device(payload.device)
-        problem = bridge.check_device_readable(device)
-        if problem:
-            raise policy.PolicyError(problem)
-        sector = payload.sector_size or bridge.detect_sector_size(device)
-        image_wsl = bridge.win_to_wsl_path(output)
-        policy.require_inside(image_wsl, settings.SETTINGS.recovery_roots, 'Output image')
-        argv = core.build_ddrescue_argv(device, image_wsl, payload.mode, sector)
-        command = bridge.command_text(argv)
-        problem = bridge.image_source_problem(image_wsl, device)
-        if problem:
-            raise policy.PolicyError(problem)
-        if bridge.image_busy(image_wsl):
-            raise policy.PolicyError(core.image_busy_error(image_wsl))
-    except policy.PolicyError as exc:
-        return {'success': False, 'error': str(exc)}
-    if not RECOVERY.try_acquire():
-        return {'success': False, 'error': RECOVERY_BUSY}
-    try:
-        bridge.linux_mkdir(os.path.dirname(image_wsl) or '/')
-        if not bridge.read_source_record(image_wsl):
-            bridge.write_source_record(image_wsl, device, bridge.device_identity(device))
-        result = subprocess.run(bridge.run_linux(core.locked_argv(argv, image_wsl)),
-                                capture_output=True, text=True, errors='replace')
-        if result.returncode == 0:
-            return {'success': True, 'command': command,
-                    'message': f"ddrescue completed: '{bridge.win_to_wsl_path(output)}'"}
-        return {'success': False, 'command': command,
-                'error': (result.stdout or result.stderr
-                          or f'ddrescue exited with code {result.returncode}')[-2000:]}
-    except FileNotFoundError as exc:
-        return {'success': False, 'command': command,
-                'error': f"'{exc.filename}' not found. Inside WSL: "
-                         'sudo apt install -y gddrescue testdisk'}
-    except Exception as exc:
-        return {'success': False, 'command': command, 'error': str(exc)}
-    finally:
-        RECOVERY.release()
-
-
-@router.post('/photorec')
-def photorec(payload: RecoverAllRequest):
-    try:
-        image = str(payload.image or '').strip()
-        if not image:
-            raise policy.PolicyError(
-                'Image path is required — create one with ddrescue first.')
-        image_wsl = bridge.win_to_wsl_path(image)
-        roots = settings.SETTINGS.recovery_roots
-        policy.require_within(image_wsl, roots, 'Image')
-        if not bridge.linux_path_exists(image_wsl):
-            raise policy.PolicyError(f'Image not found: {image_wsl}')
-        categories = policy.carve_categories(payload.file_types)
-        recup = str(payload.recup_dir or '').strip()
-        recup_dir = (bridge.win_to_wsl_path(recup) if recup else
-                     core.default_recup_dir(image_wsl, categories,
-                                            settings.SETTINGS.photorec_carve_dir))
-        policy.require_inside(recup_dir, roots, 'Carve folder')
-        argv = core.build_photorec_argv(image_wsl, recup_dir, categories)
-        command = bridge.command_text(argv)
-        if bridge.image_busy(image_wsl):
-            raise policy.PolicyError(core.image_busy_error(image_wsl))
-    except policy.PolicyError as exc:
-        return {'success': False, 'error': str(exc)}
-    if not RECOVERY.try_acquire():
-        return {'success': False, 'error': RECOVERY_BUSY}
-    try:
-        bridge.linux_mkdir(recup_dir)
-        result = subprocess.run(bridge.run_linux(core.locked_argv(argv, image_wsl)),
-                                capture_output=True, text=True, errors='replace')
-        if result.returncode == core.IMAGE_BUSY_EXIT:
-            return {'success': False, 'command': command,
-                    'error': core.image_busy_error(image_wsl)}
-        if categories:
-            bridge.set_aside_unselected_office(recup_dir, categories)
-        count = bridge.count_recovered_files(recup_dir)
-        ok = result.returncode == 0 or (count or 0) > 0
-        return {
-            'success': ok, 'command': command, 'recup_dir': recup_dir,
-            'files_recovered': count,
-            'message': (f"PhotoRec finished — {count} file(s) carved into '{recup_dir}'"
-                        if ok else None),
-            'error': None if ok else (result.stdout or result.stderr
-                                      or 'photorec failed')[-2000:],
-        }
-    except FileNotFoundError as exc:
-        return {'success': False, 'command': command,
-                'error': f"'{exc.filename}' not found — inside WSL: "
-                         'sudo apt install -y testdisk'}
-    except Exception as exc:
-        return {'success': False, 'command': command, 'error': str(exc)}
-    finally:
-        RECOVERY.release()

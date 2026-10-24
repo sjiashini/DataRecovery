@@ -57,6 +57,7 @@ class Job:
         with self._lock:
             if self.status == 'queued':
                 self.status = 'running'
+        LOGGER.info('%s job %s started', self.kind, self.id[:8])
         self.persist(force=True)
         self._emit('status', {'status': self.status}, persist=True)
         self._publish_state(force=True)
@@ -110,6 +111,8 @@ class Job:
             for progress in self.progress.values():
                 if progress.get('state') in ('running', 'pending'):
                     progress['state'] = status
+        LOGGER.info('%s job %s %s%s', self.kind, self.id[:8], status,
+                    f': {error}' if error else '')
         self._emit('status', {'status': status, 'error': error}, persist=True)
         self._publish_state(force=True)
         self._emit('end', {'status': status, 'error': error}, persist=True)
@@ -133,6 +136,23 @@ class Job:
             self.logs.append(text)
         self._emit('log', {'message': text}, persist=True)
         self.persist()
+
+    def storage_problem(self, reason):
+        """Tell the user, once, that this job's history can't be saved.
+
+        Published to live viewers only, never persisted: persisting it would fail the
+        same way and loop.
+        """
+        text = (f'WARNING: job history could not be saved ({reason}). The job keeps '
+                'running, but its log may be incomplete after a restart. Check free '
+                'space on the drive that holds the .runtime folder.')
+        with self._lock:
+            if self.fields.get('storage_warning'):
+                return
+            self.fields['storage_warning'] = text
+            self.logs.append(text)
+        self._emit('log', {'message': text}, numbered=False)
+        self._publish_state(force=True)
 
     # --------------------------------------------------------------- processes
     def attach_process(self, proc, pidfile=None):
@@ -271,50 +291,47 @@ class JobManager:
     async def _drain(self):
         if self._queue is None:
             return
-        saves = {}
         pending = []
         while True:
             try:
                 pending.append(self._queue.get_nowait())
             except asyncio.QueueEmpty:
                 break
-        for op in pending:
-            try:
-                if op[0] == 'event':
-                    await self.store.append_event(op[1], op[2])
-                else:
-                    saves[op[1]] = op[2]
-            except Exception:
-                LOGGER.exception('Job persistence failed')
-        for record in saves.values():
-            try:
-                await self.store.save_job(record)
-            except Exception:
-                LOGGER.exception('Job snapshot write failed')
+        await self._write_batch(pending)
 
     async def _pump(self):
         while True:
-            op = await self._queue.get()
-            batch = [op]
+            batch = [await self._queue.get()]
             while True:
                 try:
                     batch.append(self._queue.get_nowait())
                 except asyncio.QueueEmpty:
                     break
-            saves = {}
-            for item in batch:
-                try:
-                    if item[0] == 'event':
-                        await self.store.append_event(item[1], item[2])
-                    else:
-                        saves[item[1]] = item[2]
-                except Exception:
-                    LOGGER.exception('Job persistence failed')
-            for record in saves.values():
-                try:
-                    await self.store.save_job(record)
-                except Exception:
-                    LOGGER.exception('Job snapshot write failed')
+            await self._write_batch(batch)
+
+    async def _write_batch(self, batch):
+        """Write queued events, then the latest snapshot per job; report failures to the job."""
+        saves = {}
+        for item in batch:
+            if item[0] != 'event':
+                saves[item[1]] = item[2]
+                continue
+            try:
+                await self.store.append_event(item[1], item[2])
+            except Exception as exc:
+                LOGGER.exception('Job event write failed (job %s)', item[1][:8])
+                self._storage_failed(item[1], exc)
+        for job_id, record in saves.items():
+            try:
+                await self.store.save_job(record)
+            except Exception as exc:
+                LOGGER.exception('Job snapshot write failed (job %s)', job_id[:8])
+                self._storage_failed(job_id, exc)
+
+    def _storage_failed(self, job_id, exc):
+        job = self.get(job_id)
+        if job is not None:
+            job.storage_problem(str(exc) or exc.__class__.__name__)
 
     def _submit(self, item):
         if self._loop is None or self._queue is None:

@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass, field
 
 from vs_app import settings
+from vs_app.config import JOB_ID, short_job_id
 from vs_app.execution import media
 from vs_app.execution import bridge
 from vs_app.execution.adapters import (
@@ -37,6 +38,7 @@ class RecoverySpec:
 
 
 async def recovery_flow(job, spec):
+    JOB_ID.set(short_job_id(job.id))
     try:
         job.start()
         stages = []
@@ -233,6 +235,7 @@ def repair_worker(job, videos, ffmpeg, ffprobe, out_local, reference_local=None)
 
 
 async def repair_flow(job, videos, ffmpeg, ffprobe, out_local, reference_local=None):
+    JOB_ID.set(short_job_id(job.id))
     try:
         await asyncio.to_thread(repair_worker, job, videos, ffmpeg, ffprobe,
                                 out_local, reference_local)
@@ -256,6 +259,7 @@ async def media_flow(job, operation, run, kwargs):
     works through the job: job.request_cancel() plus cancel_process() stops the
     running ffmpeg/HandBrakeCLI, and media.capture turns that into MediaCancelled.
     """
+    JOB_ID.set(short_job_id(job.id))
     try:
         job.start()
         job.start_stage(operation)

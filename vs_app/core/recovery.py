@@ -97,7 +97,8 @@ def win_to_wsl_path(path):
     drive, tail = ntpath.splitdrive(absolute)
     if not drive:
         return absolute.replace('\\', '/')
-    return f"/mnt/{drive.rstrip(':').lower()}{tail.replace('\\', '/')}"
+    tail = tail.replace('\\', '/')  # outside the f-string: Python < 3.12 forbids it there
+    return f"/mnt/{drive.rstrip(':').lower()}{tail}"
 
 
 def wsl_to_win_path(path):
@@ -244,6 +245,30 @@ def source_mismatch(saved, current, mapfile_size=None):
         if before and now and before != now:
             return f'it was made from a source with {field} {before!r}, not {now!r}'
     return None
+
+
+SPACE_MARGIN = 512 * 1024 * 1024  # room for the mapfile, logs and filesystem overhead
+
+
+def format_bytes(count):
+    return f'{count / 1024 ** 3:.1f} GB'
+
+
+def space_problem(source_size, image_bytes, free_bytes, margin=SPACE_MARGIN):
+    """Why the destination can't hold the rest of the image, or None.
+
+    ddrescue grows the image to the source's full size, so imaging that runs out of
+    space fails hours in. `image_bytes` is what a resumed image already has on disk.
+    Unknown sizes skip the check rather than block a recovery.
+    """
+    if not source_size or free_bytes is None:
+        return None
+    needed = max(source_size - (image_bytes or 0), 0) + margin
+    if free_bytes >= needed:
+        return None
+    return (f'Not enough free space for the image: it needs about {format_bytes(needed)} more, '
+            f'but the destination drive has {format_bytes(free_bytes)} free. Choose a folder '
+            'on a drive with more space, or free some up, then retry.')
 
 
 def source_mismatch_error(image_wsl, reason):

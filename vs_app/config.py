@@ -1,5 +1,6 @@
 """Runtime configuration, resource resolution, and rotating file logging."""
 
+import contextvars
 import logging
 import ntpath
 import os
@@ -216,6 +217,21 @@ def get_settings(env_path=None):
     )
 
 
+# The job a log line belongs to. Each flow sets it at its start; asyncio tasks and
+# asyncio.to_thread workers inherit it, so every line the job causes carries the id.
+JOB_ID = contextvars.ContextVar('job_id', default='-')
+
+
+def short_job_id(job_id):
+    return job_id[:8]
+
+
+class JobIdFilter(logging.Filter):
+    def filter(self, record):
+        record.job_id = JOB_ID.get()
+        return True
+
+
 def setup_logging(settings):
     """Configure one rotating file handler plus console output, without duplicates."""
     logger = logging.getLogger('video_studio')
@@ -223,10 +239,11 @@ def setup_logging(settings):
     if logger.handlers:
         return logger
     formatter = logging.Formatter(
-        '%(asctime)s %(levelname)-8s %(threadName)-14s %(name)s: %(message)s'
+        '%(asctime)s %(levelname)-8s job=%(job_id)-8s %(threadName)-14s %(name)s: %(message)s'
     )
     console = logging.StreamHandler()
     console.setFormatter(formatter)
+    console.addFilter(JobIdFilter())
     logger.addHandler(console)
     try:
         os.makedirs(settings.log_dir, exist_ok=True)
@@ -235,6 +252,7 @@ def setup_logging(settings):
             maxBytes=5 * 1024 * 1024, backupCount=5, encoding='utf-8',
         )
         file_handler.setFormatter(formatter)
+        file_handler.addFilter(JobIdFilter())
         logger.addHandler(file_handler)
     except OSError as exc:
         logger.warning('File logging unavailable: %s', exc)

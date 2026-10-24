@@ -434,6 +434,24 @@ def image_source_problem(image_wsl, device):
     return core.source_mismatch_error(image_wsl, reason) if reason else None
 
 
+def image_space_problem(image_wsl, device):
+    """Why the image's drive lacks room for the rest of `device`, or None."""
+    local = linux_to_local_path(image_wsl)
+    existing = os.path.getsize(local) if os.path.isfile(local) else 0
+    folder = os.path.dirname(local) or '.'
+    while not os.path.isdir(folder):  # the run folder is created later; measure its drive
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return None
+        folder = parent
+    try:
+        free = shutil.disk_usage(folder).free
+    except OSError as exc:
+        LOGGER.warning('free-space check skipped for %s: %s', folder, exc)
+        return None
+    return core.space_problem(device_identity(device).get('size'), existing, free)
+
+
 def detect_sector_size(device):
     if core.is_optical_device(device):
         return 2048

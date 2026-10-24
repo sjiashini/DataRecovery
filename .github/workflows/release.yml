@@ -1,0 +1,32 @@
+# Pushing a version tag (for example `git tag v3.1.0 && git push origin v3.1.0`)
+# checks the code, builds the folder exe and publishes it as a GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install locked dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Compile, lint and unit tests
+        run: python scripts/check.py --quick
+      - name: Build the folder exe
+        run: python -m PyInstaller --noconfirm --clean video_studio_backend.spec
+      - name: Zip it
+        shell: pwsh
+        run: Compress-Archive -Path dist/video_studio_backend -DestinationPath "video_studio_backend-${{ github.ref_name }}-windows.zip"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "video_studio_backend-${{ github.ref_name }}-windows.zip" --title "${{ github.ref_name }}" --generate-notes
