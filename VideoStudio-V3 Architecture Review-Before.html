@@ -1,0 +1,434 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>VideoStudio-V3 Architecture Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a single case-file column (max ~920px) with a ruled header block, data tables in scroll containers, severity encoded as left-edge chips */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5a6575;
+  --rule: #d5dbe4;
+  --accent: #1f5aa6;
+  --accent-soft: #e3ecf8;
+  --crit: #b4232a;
+  --crit-soft: #fbe7e8;
+  --high: #c25a0c;
+  --high-soft: #fcefe2;
+  --med: #8a6a00;
+  --med-soft: #f8f1d8;
+  --low: #4b5870;
+  --low-soft: #e9edf3;
+  --ok: #1d7a46;
+  --ok-soft: #e1f3e8;
+  --bar-track: #e4e8ef;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+    --accent: #86b1ee; --accent-soft: #1c2b40;
+    --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+    --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+    --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+  --accent: #86b1ee; --accent-soft: #1c2b40;
+  --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+  --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+  --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 920px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+section { display: grid; gap: 16px; min-width: 0; }
+.section-head { display: grid; gap: 4px; border-top: 2px solid var(--fg); padding-top: 12px; }
+
+/* Header block */
+header { display: grid; gap: 20px; }
+.meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0;
+  border: 1px solid var(--rule); background: var(--surface);
+}
+.meta div { padding: 12px 14px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 2px; min-width: 0; }
+.meta dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.score-big {
+  font-family: var(--font-display); font-weight: 700; font-size: 64px; line-height: 1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.score-big small { font-size: 24px; color: var(--muted); font-weight: 500; }
+@media (max-width: 560px) { .verdict { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Lists of strengths/risks */
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.two-col > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
+ol.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+ol.plain li { padding-left: 4px; }
+
+/* Status update */
+.update { background: var(--ok-soft); border: 1px solid var(--ok); padding: 18px 20px; display: grid; gap: 12px; }
+.update h2 { color: var(--ok); font-size: 20px; }
+.update ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.scorecard td:first-child { font-weight: 500; min-width: 170px; }
+.scorecard td:nth-child(4) { min-width: 300px; }
+.gaps td:first-child { font-weight: 500; min-width: 150px; }
+.gaps td:nth-child(2), .gaps td:nth-child(3), .gaps td:nth-child(4) { min-width: 170px; }
+.gaps td:last-child { min-width: 240px; }
+.risks td:first-child { min-width: 260px; }
+.risks td:last-child { min-width: 240px; }
+tfoot td { font-weight: 600; background: var(--bg); }
+
+.bar { display: grid; grid-template-columns: 34px 80px; gap: 8px; align-items: center; }
+.bar span.track { display: block; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.bar span.fill { display: block; height: 100%; background: var(--accent); }
+.bar.low-score span.fill { background: var(--crit); }
+
+.pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+  white-space: nowrap; border: 1px solid currentColor;
+}
+.pill.crit { color: var(--crit); background: var(--crit-soft); }
+.pill.high { color: var(--high); background: var(--high-soft); }
+.pill.med { color: var(--med); background: var(--med-soft); }
+.pill.low { color: var(--low); background: var(--low-soft); }
+.pill.ok { color: var(--ok); background: var(--ok-soft); }
+.pill.conf { color: var(--muted); background: transparent; }
+tr.fixed td { background: var(--ok-soft); }
+
+/* Detailed analysis */
+.dims { display: grid; gap: 0; border: 1px solid var(--rule); background: var(--surface); }
+.dim { padding: 16px 18px; border-bottom: 1px solid var(--rule); display: grid; gap: 8px; min-width: 0; }
+.dim:last-child { border-bottom: 0; }
+.dim-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.dim-head .num { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.dim-head .s { font-family: var(--font-mono); font-size: 13px; color: var(--accent); margin-left: auto; }
+.dim dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 6px 14px; }
+.dim dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-top: 3px; }
+.dim dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .dim dl { grid-template-columns: 1fr; gap: 2px; } .dim dd { margin-bottom: 8px; } }
+
+/* Roadmap */
+.roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.phase { border-top: 3px solid var(--accent); background: var(--surface); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.phase ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.phase .dep { color: var(--muted); font-size: 13px; }
+.done { text-decoration: line-through; color: var(--muted); }
+
+.questions { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Architecture review · Tech stack gap analysis</div>
+  <h1>VideoStudio-V3 Architecture Review</h1>
+  <dl class="meta">
+    <div><dt>System</dt><dd>CD/DVD and pen-drive recovery suite with video tools</dd></div>
+    <div><dt>Stack</dt><dd>FastAPI · SQLite · WSL2 · ddrescue / PhotoRec</dd></div>
+    <div><dt>Target scale</dt><dd>1 user, 1 machine, 1 device at a time</dd></div>
+    <div><dt>Reviewed</dt><dd>24 Oct 2026</dd></div>
+  </dl>
+  <div class="verdict">
+    <div class="score-big">3.1<small>/5</small></div>
+    <p>The recovery path is well designed: it images the drive first and never writes to the source, ddrescue's mapfile lets interrupted runs resume, each stage has its own failure policy, and every external tool is launched as an argument list rather than through a shell. The weaknesses are around the code rather than in it: no version control or CI, a localhost boundary that a malicious web page could bypass, and reliability gaps in the paths outside the main recovery pipeline.</p>
+  </div>
+</header>
+
+<div class="update" role="status">
+  <h2>Update: three quick wins are fixed</h2>
+  <p>After the review, three findings were fixed in the codebase. The test suite grew from 82 to 104 tests, and all of them pass.</p>
+  <ul>
+    <li><strong>DNS rebinding is blocked.</strong> Every request, including the page that carries the token, must have a loopback <code>Host</code> header. State-changing requests from a non-loopback <code>Origin</code> are refused. Checked against a live server instance: a rebound host now gets 403 and no token.</li>
+    <li><strong>Media inputs are sandboxed.</strong> Cut, join, transcode and the repair reference must sit inside <code>MEDIA_ROOTS</code>. All root checks now resolve junctions and symlinks, so a link inside a root can't point outside it.</li>
+    <li><strong>Orphaned tools are stopped at startup.</strong> ddrescue, PhotoRec or TestDisk left running inside WSL by a backend that crashed are stopped. They get SIGINT first so ddrescue saves its mapfile, then SIGTERM. Checked in WSL: a stray ddrescue was stopped and an unrelated process was left alone.</li>
+  </ul>
+  <p>The scores below are from the original review. The fixed rows are marked in the gap table.</p>
+</div>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Executive summary</div><h2>Strengths and risks</h2></div>
+  <div class="two-col">
+    <div>
+      <h3>Top 3 strengths</h3>
+      <ol class="plain">
+        <li><strong>Data-safe recovery design.</strong> It always images first, keeps ddrescue's mapfile on cancel (SIGINT before SIGTERM), writes media outputs to temporary files and renames them into place, and never carves a partial image automatically.</li>
+        <li><strong>Clean layering.</strong> API, orchestration, execution and storage are separate. Each stage declares a failure policy (<code>abort</code>, <code>continue</code>, <code>report</code>), and every job ends in an explicit state.</li>
+        <li><strong>Defence in depth on inputs.</strong> Devices must match a pattern and appear in a live <code>lsblk</code> listing. Outputs must sit inside configured roots. Requests are validated with Pydantic, and the token comparison is constant-time.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Top 3 risks</h3>
+      <ol class="plain">
+        <li><strong>No version control, no CI.</strong> Versions are kept as folder copies, so there is no rollback, no change history and no automated test gate.</li>
+        <li><strong>DNS rebinding exposes the full API.</strong> There was no <code>Host</code> check, and the public page had the token embedded. <span class="pill ok">Fixed</span></li>
+        <li><strong>Orphaned processes can corrupt an image.</strong> A ddrescue that outlives a crashed backend could share the image and mapfile with a new run. <span class="pill ok">Fixed</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Scorecard</div><h2>Eleven dimensions, weighted</h2></div>
+  <p>Weights reflect a single-user desktop tool that handles irreplaceable data: reliability, security, delivery practices and maintainability count most.</p>
+  <div class="table-wrap">
+    <table class="scorecard">
+      <thead><tr><th>Dimension</th><th>Weight</th><th>Score</th><th>Evidence</th><th>Conf.</th></tr></thead>
+      <tbody>
+        <tr><td>Architectural style &amp; modularity</td><td class="num">10%</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Layered modular monolith with an adapter and pipeline pattern. Concurrency mixes threads and asyncio; three separate UIs; legacy endpoints bypass the job system.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Scalability &amp; performance</td><td class="num">6%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>One global lock serialises unrelated work. One SQLite commit per log event. Long media jobs block HTTP worker threads.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Reliability &amp; resilience</td><td class="num">15%</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Mapfile resume, temp-file outputs, crashed jobs closed on restart. No reaping of orphaned tools, media jobs can't be cancelled, depends on WSL and usbipd.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Security &amp; compliance</td><td class="num">12%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Token, loopback, argument lists, allowlists. No Host check, <code>MEDIA_ROOTS</code> not enforced on inputs, <code>.env</code> bundled into the exe.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Data architecture</td><td class="num">7%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>SQLite in WAL mode fits. No retention, no schema version or migrations, persistence errors only logged.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Integration &amp; API design</td><td class="num">6%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Job resource plus server-sent events with replay. RPC-style verbs, mixed error conventions, duplicate legacy routes.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Infrastructure &amp; DevOps</td><td class="num">12%</td><td><div class="bar low-score"><span class="mono">1.5</span><span class="track"><span class="fill" style="width:30%"></span></span></div></td><td>No version control, no CI, manual WSL setup, unsigned PyInstaller one-file build, indirect dependencies unpinned.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Observability &amp; operability</td><td class="num">7%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Rotating logs, saved event stream, tool health check. Unstructured logs, no job id on log lines, no diagnostics bundle.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Maintainability &amp; tech debt</td><td class="num">12%</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>82 fast unit tests on pure logic. No tests for routes, middleware, adapters or flows; a 2,545-line page; docs out of date.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Technology fitness &amp; lifecycle</td><td class="num">9%</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Mainstream Python, FastAPI and SQLite plus the standard recovery tools. Tied to Windows, WSL2, usbipd and NVIDIA; usbipd CLI changes already show in the logs.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Cost efficiency</td><td class="num">4%</td><td><div class="bar"><span class="mono">4.5</span><span class="track"><span class="fill" style="width:90%"></span></span></div></td><td>All open source and local. The real cost is setup and maintainer time.</td><td><span class="pill conf">H</span></td></tr>
+      </tbody>
+      <tfoot><tr><td>Weighted total</td><td class="num">100%</td><td class="num">3.05</td><td colspan="2">Rounded to 3.1 / 5</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Detailed analysis</div><h2>What works, what doesn't, and why it matters</h2></div>
+  <div class="dims">
+    <article class="dim">
+      <div class="dim-head"><span class="num">01</span><h3>Architectural style</h3><span class="s">3.5 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>The layers in <code>vs_app/</code> are real. <code>Pipeline.run</code> applies the per-stage policy in one place, the adapters wrap each tool's process handling and parsing, and <code>recovery_core.py</code> holds pure policy logic shared with the desktop GUI.</dd>
+        <dt>Doesn't</dt><dd>Recovery uses async subprocess adapters while repair and media use blocking <code>Popen</code> in threads. The <code>/api/ddrescue</code> and <code>/api/photorec</code> routes skip the job system entirely, with no pidfile and no cancellation. Four modules live at the project root, so imports only work from there. There are three UIs.</dd>
+        <dt>Why</dt><dd>At this size the duplication is survivable, but every feature has to be added on two paths, and the bypass routes undo the safety guarantees the README advertises.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">02</span><h3>Scalability &amp; performance</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Horizontal scale isn't needed. Streams are parsed line by line or in 64 KB chunks, state events are throttled to every 0.5 s, and saves are combined about once a second.</dd>
+        <dt>Doesn't</dt><dd>One lock covers all recovery and media work, so you can't trim a video during a multi-hour imaging run. Every log event is its own commit. Cut, join and transcode hold an HTTP request and a worker thread for their whole run. Uploads write with blocking calls inside an async handler.</dd>
+        <dt>Why</dt><dd>These hit how the app feels to use, which matters more than raw throughput for a desktop tool. The README's 280 fps NVENC figure isn't backed by a benchmark in the repo.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">03</span><h3>Reliability &amp; resilience</h3><span class="s">3.5 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Image-first with mapfile resume, jobs a crash left running are closed on restart, outputs are written to temp files, leaked WSL keepers are cleaned up, and TestDisk has a 120 s timeout.</dd>
+        <dt>Doesn't</dt><dd>Tool processes weren't reaped after a crash (now fixed), and nothing stops two runs on one image. Media jobs can't be cancelled because the routes never pass a cancel check. Persistence failures are only logged. The <code>bash -lc</code> login shell loads profile scripts, so tool behaviour can drift.</dd>
+        <dt>Why</dt><dd>The product promises not to lose data. The main path keeps that promise; the side paths don't.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">04</span><h3>Security &amp; compliance</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>A 256-bit token per launch compared in constant time, loopback bind, no CORS, CSP and anti-framing headers, argument lists only, bus IDs validated before they reach PowerShell, and escaped page output.</dd>
+        <dt>Doesn't</dt><dd>No Host or Origin check while the public page carried the token (fixed). <code>MEDIA_ROOTS</code> wasn't enforced on inputs, and root checks didn't follow links (fixed). The build bundles <code>.env</code> into the exe. CSP allows inline scripts while the token sits in a global. The per-IP rate limiter means nothing on loopback.</dd>
+        <dt>Why</dt><dd>On a single-user machine, the threat that matters is a web page reaching the loopback server. Recovered files may contain other people's personal data; whether a retention policy applies is an open question.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">05</span><h3>Data architecture</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>SQLite in WAL mode with a primary key per job, an index on kind and created time, and a <code>(job_id, seq)</code> key that makes event replay deterministic.</dd>
+        <dt>Doesn't</dt><dd>The events table grows without limit, there's no schema version or migration path, the job's truth lives both in memory and in the database, and the in-memory job index is never pruned.</dd>
+        <dt>Why</dt><dd>Low risk today. It will cause trouble at the first schema change or after months of chatty PhotoRec runs.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">06</span><h3>Integration &amp; API design</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Starting a job returns a job id and an events URL; the event stream supports replay and a 15 s heartbeat, with polling as a fallback. OpenAPI is turned off, which is sensible on loopback.</dd>
+        <dt>Doesn't</dt><dd>Route names are verbs, policy errors return HTTP 200 with <code>success:false</code> while validation errors return 422, a GET opens a native file dialog, and there's no contract for the companion script.</dd>
+        <dt>Why</dt><dd>Fine for one in-repo client; brittle as soon as a second client depends on it.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">07</span><h3>Infrastructure &amp; DevOps</h3><span class="s">1.5 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Top-level dependencies are pinned, the PyInstaller spec is reproducible, and the runtime folder can be relocated.</dd>
+        <dt>Doesn't</dt><dd>No git, versions kept as folder copies, stray artefacts in the project root, no CI, linter or type checker, indirect dependencies unpinned, WSL setup done by hand, and an unsigned one-file exe that antivirus tools often flag.</dd>
+        <dt>Why</dt><dd>This drags the overall score down the most. One bad edit can't be rolled back.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">08</span><h3>Observability &amp; operability</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Rotating file log (5 MB × 5), a saved event stream per job, a live stage timeline, tool and status probes, and a 30 s progress summary in the job log.</dd>
+        <dt>Doesn't</dt><dd>Logs are free text with no job id, tool output gets cut off mid-message, and there's no diagnostics export. Metrics and tracing aren't needed at this scale.</dd>
+        <dt>Why</dt><dd>When a multi-hour run fails, the log is the only evidence of what happened.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">09</span><h3>Maintainability &amp; tech debt</h3><span class="s">3.0 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>Fast tests cover parsers, policy, the job state machine, the store, the pipeline and media argument building. Modules are small and the docs are extensive.</dd>
+        <dt>Doesn't</dt><dd>No tests for routes, adapters, flows or the frontend (the HTTP guard now has tests). The page is one 2,545-line HTML file with inline JavaScript. The README references a missing guide and claimed protections the code didn't have. Some helpers are duplicated across modules.</dd>
+        <dt>Why</dt><dd>The code most likely to break, the process plumbing, has no tests.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">10</span><h3>Technology fitness &amp; lifecycle</h3><span class="s">3.5 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>ddrescue, PhotoRec and TestDisk are the standard tools for this job. Python, FastAPI and SQLite are easy to hire for. Running Linux block tools through WSL is pragmatic on Windows.</dd>
+        <dt>Doesn't</dt><dd>Tied to Windows 11, WSL2, usbipd-win and NVIDIA NVENC. usbipd's CLI has already changed under the code. customtkinter is barely maintained. The README says Python 3.10+, but this machine runs 3.14 and nothing tests across versions.</dd>
+        <dt>Why</dt><dd>Every link in the platform chain can break on an update the app doesn't control.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">11</span><h3>Cost efficiency</h3><span class="s">4.5 / 5</span></div>
+      <dl>
+        <dt>Works</dt><dd>No licences to pay and no cloud bill. GPL tools (HandBrake, ffmpeg) run as separate programs and aren't bundled.</dd>
+        <dt>Doesn't</dt><dd>Total cost comes down to setup friction (WSL, usbipd, drivers, apt packages) and one maintainer's time.</dd>
+        <dt>Why</dt><dd>Scripting the setup is the cheapest way to lower that cost.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Gap analysis</div><h2>From current state to target</h2></div>
+  <div class="table-wrap">
+    <table class="gaps">
+      <thead><tr><th>Gap</th><th>Current</th><th>Target</th><th>Impact</th><th>Severity</th><th>Effort</th><th>Remediation</th></tr></thead>
+      <tbody>
+        <tr><td>Version control</td><td>None; folder copies</td><td>Git repo with tagged releases</td><td>No rollback or history</td><td><span class="pill crit">Critical</span></td><td class="num">S</td><td><code>git init</code>, a <code>.gitignore</code> for runtime files, build output and <code>.env</code>; move artefacts into <code>docs/</code></td></tr>
+        <tr class="fixed"><td>DNS rebinding / Host check</td><td>Any Host accepted; token in public page</td><td>Loopback Host only; loopback Origin on state changes</td><td>A remote site controls the API</td><td><span class="pill ok">Fixed</span></td><td class="num">S</td><td>Host and Origin checks in the API guard, with tests and a live check</td></tr>
+        <tr class="fixed"><td>Orphaned tool processes</td><td>Not reaped</td><td>Startup reaps tools whose backend is gone</td><td>Two ddrescue writers corrupt the image</td><td><span class="pill ok">Fixed</span></td><td class="num">M</td><td>Startup reaper with tests and a WSL check. A per-image lock is still open.</td></tr>
+        <tr><td>CI and HTTP-layer tests</td><td>None</td><td>Lint, type check and tests on every change; route tests</td><td>Regressions in auth and policy</td><td><span class="pill high">High</span></td><td class="num">M</td><td>Add CI; route tests with stubbed tool calls</td></tr>
+        <tr class="fixed"><td>Media input sandbox</td><td>Extension and existence only</td><td><code>MEDIA_ROOTS</code> enforced; links resolved</td><td>Arbitrary file reads; junction escapes</td><td><span class="pill ok">Fixed</span></td><td class="num">S</td><td>Root check on inputs and link resolution in every root check, with tests</td></tr>
+        <tr><td>Media jobs</td><td>Synchronous, can't be cancelled, hold the global lock</td><td>Run through the job manager with id, events and cancel</td><td>A runaway job locks the app</td><td><span class="pill high">High</span></td><td class="num">M</td><td>Add a <code>media</code> job kind using the existing cancel hooks</td></tr>
+        <tr><td>Legacy endpoints</td><td><code>/ddrescue</code>, <code>/photorec</code> bypass jobs</td><td>Removed or redirected</td><td>Hours-long requests that can't be cancelled</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Delete them and update the companion script</td></tr>
+        <tr><td>Lock granularity</td><td>One global lock</td><td>Separate device and encoder locks</td><td>Can't edit video while imaging</td><td><span class="pill med">Med</span></td><td class="num">M</td><td>Split the gate; add a per-image file lock</td></tr>
+        <tr><td>Dependency locking</td><td>Top-level only</td><td>Fully locked with hashes</td><td>Builds can't be reproduced</td><td><span class="pill med">Med</span></td><td class="num">S</td><td><code>pip-compile --generate-hashes</code> or <code>uv lock</code></td></tr>
+        <tr><td>Event retention and schema version</td><td>Unbounded; no versioning</td><td>Pruning and numbered migrations</td><td>Database growth; risky upgrades</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Prune at startup; one migration per version</td></tr>
+        <tr><td><code>.env</code> in the exe</td><td>Bundled when present</td><td>Never bundled</td><td>Personal paths ship in the binary</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Remove it from the PyInstaller spec</td></tr>
+        <tr><td>Environment setup</td><td>Manual README steps</td><td>Setup script plus a missing-tool report</td><td>Onboarding friction</td><td><span class="pill med">Med</span></td><td class="num">M</td><td>Script the WSL install; report missing tools in the health check</td></tr>
+        <tr><td>Structured logs</td><td>Free text, no job id</td><td>JSON lines with job id; diagnostics export</td><td>Hard to debug failures</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>A logger adapter per job; a diagnostics endpoint</td></tr>
+        <tr><td>Frontend monolith</td><td>2,545-line HTML, inline JS</td><td>Separate files; nonce-based CSP</td><td>XSS would expose the token</td><td><span class="pill low">Low</span></td><td class="num">M</td><td>Extract the script; serve it as a static file</td></tr>
+        <tr><td>Doc drift</td><td>README contradicted the code</td><td>Docs that match behaviour</td><td>Users trust guarantees that don't hold</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Security section updated; architecture and tree sections still stale</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Prioritised roadmap</div><h2>What to do, in order</h2></div>
+  <div class="roadmap">
+    <div class="phase">
+      <h3>Quick wins · 0–3 months</h3>
+      <ol>
+        <li>Put the project under git and move stray artefacts. <span class="dep">Needed before everything else.</span></li>
+        <li class="done">Host and Origin checks in the API guard</li>
+        <li class="done">Enforce <code>MEDIA_ROOTS</code>; resolve links</li>
+        <li class="done">Reap orphaned tools at startup</li>
+        <li>Add a per-image lock</li>
+        <li>Drop <code>.env</code> from the build; lock dependencies with hashes</li>
+        <li>Delete the legacy single-tool routes</li>
+        <li>Minimal CI: lint and tests on push. <span class="dep">Needs git.</span></li>
+      </ol>
+    </div>
+    <div class="phase">
+      <h3>Mid-term · 3–9 months</h3>
+      <ol>
+        <li>Move media work onto the job manager. <span class="dep">Needs CI.</span></li>
+        <li>Split the global lock. <span class="dep">Needs step 1.</span></li>
+        <li>Route and adapter tests with fake processes</li>
+        <li>Event retention and schema migrations</li>
+        <li>WSL setup script; missing-tool report</li>
+        <li>Job ids on log lines; diagnostics export</li>
+      </ol>
+    </div>
+    <div class="phase">
+      <h3>Strategic · 9+ months</h3>
+      <ol>
+        <li>Keep one UI and retire or freeze the others</li>
+        <li>Move root modules into the package with a <code>pyproject.toml</code></li>
+        <li>Split the page into files with a nonce-based CSP</li>
+        <li>Signed installer instead of the unsigned exe</li>
+        <li>Evaluate native Windows imaging for USB flash to reduce the usbipd dependency. <span class="dep">Needs step 2.</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Risk register</div><h2>Top risks</h2></div>
+  <div class="table-wrap">
+    <table class="risks">
+      <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Code lost or broken with no way back (no version control)</td><td><span class="pill high">High</span></td><td><span class="pill high">High</span></td><td>Git and a remote backup now</td></tr>
+        <tr class="fixed"><td>A rebinding site drives the API, including the elevated usbipd bind</td><td><span class="pill low">Low–Med</span></td><td><span class="pill high">High</span></td><td>Fixed with Host and Origin checks</td></tr>
+        <tr class="fixed"><td>Two ddrescue writers after a crash corrupt the image</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>Reaper fixed; a per-image lock is still open</td></tr>
+        <tr><td>A runaway transcode blocks every operation</td><td><span class="pill med">Med</span></td><td><span class="pill med">Med</span></td><td>Media on the job manager with cancel; separate locks</td></tr>
+        <tr><td>A WSL or usbipd update breaks attach or tool calls</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>Report tool versions; pin the usbipd version in the docs; a smoke test</td></tr>
+        <tr><td>An indirect dependency change breaks the build</td><td><span class="pill med">Med</span></td><td><span class="pill med">Med</span></td><td>Hash-locked dependencies; a CI build job</td></tr>
+        <tr><td>The jobs database grows without limit</td><td><span class="pill low">Low–Med</span></td><td><span class="pill low">Low</span></td><td>Retention at startup</td></tr>
+        <tr><td>Antivirus quarantines the unsigned exe</td><td><span class="pill med">Med</span></td><td><span class="pill med">Med</span></td><td>Code signing or an installer</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Assumptions and open questions</div><h2>What would raise confidence</h2></div>
+  <p>Assumed: one user on one machine, a personal or small-team desktop tool, and Windows 11 with WSL2 and an NVIDIA GPU as fixed requirements.</p>
+  <ol class="questions">
+    <li><strong>Who uses it?</strong> Distributing the exe raises the stakes on signing, installers and update channels.</li>
+    <li><strong>Which browser?</strong> Local-network protections vary by browser, which changed how exposed the rebinding gap was.</li>
+    <li><strong>Has the 280 fps NVENC figure been measured</strong> on this hardware?</li>
+    <li><strong>Are the sibling folders older versions</strong> of this project, or separate products that share code? That decides how to build the git history.</li>
+    <li><strong>Do recovered files contain other people's personal data?</strong> If so, retention and handling may be a compliance concern.</li>
+    <li><strong>How long are typical PhotoRec runs</strong>, and how many log lines do they produce? That decides whether per-event commits matter.</li>
+    <li><strong>Should the desktop GUI and the companion script stay supported?</strong> The answer sets how much to consolidate.</li>
+  </ol>
+</section>
+
+<footer>Based on the source code in <span class="mono">VideoStudio-V3</span> (about 5,000 lines of Python plus the web page) and test runs on 24 Oct 2026. Every score cites evidence from the code; where evidence was missing, the question is listed above instead of a guess.</footer>
+
+</div>
+
+</body></html>

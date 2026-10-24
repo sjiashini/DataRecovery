@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Make App Rating 5/5</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a single case-file column (max ~920px) with a ruled header block, data tables in scroll containers, severity encoded as left-edge chips */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5a6575;
+  --rule: #d5dbe4;
+  --accent: #1f5aa6;
+  --accent-soft: #e3ecf8;
+  --crit: #b4232a;
+  --crit-soft: #fbe7e8;
+  --high: #c25a0c;
+  --high-soft: #fcefe2;
+  --med: #8a6a00;
+  --med-soft: #f8f1d8;
+  --low: #4b5870;
+  --low-soft: #e9edf3;
+  --ok: #1d7a46;
+  --ok-soft: #e1f3e8;
+  --bar-track: #e4e8ef;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+    --accent: #86b1ee; --accent-soft: #1c2b40;
+    --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+    --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+    --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+  --accent: #86b1ee; --accent-soft: #1c2b40;
+  --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+  --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+  --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 920px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+section { display: grid; gap: 16px; min-width: 0; }
+.section-head { display: grid; gap: 4px; border-top: 2px solid var(--fg); padding-top: 12px; }
+
+/* Header block */
+header { display: grid; gap: 20px; }
+.meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0;
+  border: 1px solid var(--rule); background: var(--surface);
+}
+.meta div { padding: 12px 14px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 2px; min-width: 0; }
+.meta dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.score-big {
+  font-family: var(--font-display); font-weight: 700; font-size: 64px; line-height: 1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.score-big small { font-size: 24px; color: var(--muted); font-weight: 500; }
+@media (max-width: 560px) { .verdict { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Lists of strengths/risks */
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.two-col > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
+ol.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+ol.plain li { padding-left: 4px; }
+
+/* Status update */
+.update { background: var(--ok-soft); border: 1px solid var(--ok); padding: 18px 20px; display: grid; gap: 12px; }
+.update h2 { color: var(--ok); font-size: 20px; }
+.update ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.scorecard td:first-child { font-weight: 500; min-width: 170px; }
+.scorecard td:nth-child(4) { min-width: 300px; }
+.gaps td:first-child { font-weight: 500; min-width: 150px; }
+.gaps td:nth-child(2), .gaps td:nth-child(3), .gaps td:nth-child(4) { min-width: 170px; }
+.gaps td:last-child { min-width: 240px; }
+.risks td:first-child { min-width: 260px; }
+.risks td:last-child { min-width: 240px; }
+tfoot td { font-weight: 600; background: var(--bg); }
+
+.bar { display: grid; grid-template-columns: 34px 80px; gap: 8px; align-items: center; }
+.bar span.track { display: block; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.bar span.fill { display: block; height: 100%; background: var(--accent); }
+.bar.low-score span.fill { background: var(--crit); }
+
+.pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+  white-space: nowrap; border: 1px solid currentColor;
+}
+.pill.crit { color: var(--crit); background: var(--crit-soft); }
+.pill.high { color: var(--high); background: var(--high-soft); }
+.pill.med { color: var(--med); background: var(--med-soft); }
+.pill.low { color: var(--low); background: var(--low-soft); }
+.pill.ok { color: var(--ok); background: var(--ok-soft); }
+.pill.conf { color: var(--muted); background: transparent; }
+tr.fixed td { background: var(--ok-soft); }
+
+/* Detailed analysis */
+.dims { display: grid; gap: 0; border: 1px solid var(--rule); background: var(--surface); }
+.dim { padding: 16px 18px; border-bottom: 1px solid var(--rule); display: grid; gap: 8px; min-width: 0; }
+.dim:last-child { border-bottom: 0; }
+.dim-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.dim-head .num { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.dim-head .s { font-family: var(--font-mono); font-size: 13px; color: var(--accent); margin-left: auto; }
+.dim dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 6px 14px; }
+.dim dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-top: 3px; }
+.dim dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .dim dl { grid-template-columns: 1fr; gap: 2px; } .dim dd { margin-bottom: 8px; } }
+
+/* Roadmap */
+.roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.phase { border-top: 3px solid var(--accent); background: var(--surface); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.phase ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.phase .dep { color: var(--muted); font-size: 13px; }
+.done { text-decoration: line-through; color: var(--muted); }
+
+.questions { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* After-review additions: before/after score pair, muted old scores, closed-gap list */
+.scores { display: flex; align-items: flex-end; gap: 14px; }
+.score-old { font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score-old small { font-size: 18px; font-weight: 500; }
+.scores .lbl { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.arrow { font-size: 28px; color: var(--muted); padding-bottom: 8px; }
+td.old { color: var(--muted); }
+.scorecard td:nth-child(4) { min-width: 0; }
+.scorecard td:nth-child(5) { min-width: 300px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+details.closed { border: 1px solid var(--rule); background: var(--surface); padding: 12px 16px; }
+details.closed summary { cursor: pointer; font-weight: 600; }
+details.closed p { margin-top: 8px; }
+
+/* Rating-roadmap additions: callouts, the per-dimension plan table, phase cards */
+.callout { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 12px 16px; }
+.callout.next { background: var(--ok-soft); border-left-color: var(--ok); }
+.path td:first-child { min-width: 170px; }
+.path td:last-child { min-width: 360px; }
+.path .w { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-weight: 400; }
+.path td.add { color: var(--ok); font-weight: 500; }
+.phase-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
+.phase-meta .effort { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.phase ul.plain { font-size: 14px; gap: 6px; }
+ul.advice { gap: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Roadmap · from 3.6 to 5.0</div>
+  <h1>Make App Rating 5/5</h1>
+  <dl class="meta">
+    <div><dt>Rating now</dt><dd>3.6 / 5 (weighted 3.60)</dd></div>
+    <div><dt>Target</dt><dd>5.0 / 5</dd></div>
+    <div><dt>Points to gain</dt><dd>+1.40 weighted</dd></div>
+    <div><dt>Based on</dt><dd>Commit <span class="mono">4558aec</span>, 24 Oct 2026</dd></div>
+  </dl>
+</header>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Checking the code first</div><h2>One gap confirmed before listing</h2></div>
+  <p>I’ll ground this in the code. One gap I want to confirm before listing it: whether anything checks free disk space before imaging.</p>
+  <div class="callout">
+    <p><strong>Confirmed:</strong> nothing checks free disk space before imaging, so imaging a 64 GB pen drive onto a C: drive with 20 GB free would fail partway through. I've added that to the list below.</p>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Per dimension</div><h2>Where the remaining 1.4 points are</h2></div>
+  <p>Every dimension has to reach 5. Here's what each one needs, ranked by how much it adds to the weighted total:</p>
+  <div class="table-wrap">
+    <table class="path">
+      <thead><tr><th>Dimension</th><th>Now → 5</th><th>Adds</th><th>What it takes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>DevOps</strong> <span class="w">12%</span></td><td class="num">3.0 → 5</td><td class="num add">+0.24</td><td>GitHub Actions on every push: tests on Windows and Linux with Python 3.10 and 3.14, a linter (ruff), a type checker, a dependency vulnerability scan (<code>pip-audit</code>), and building the exe. Also a build gate in <code>build_exe.bat</code>, tagged releases with the exe attached, and automatic lock-file update PRs.</td></tr>
+        <tr><td><strong>Maintainability</strong> <span class="w">12%</span></td><td class="num">3.5 → 5</td><td class="num add">+0.18</td><td>Split the 2,545-line page into separate JS and CSS files. Add browser tests (Playwright) for cut, join and recovery screens. Type hints that pass a type checker. Measured test coverage with a minimum, around 85% on core, api and orchestration. Short decision records for the key design choices.</td></tr>
+        <tr><td><strong>Reliability</strong> <span class="w">15%</span></td><td class="num">4.0 → 5</td><td class="num add">+0.15</td><td>A <strong>free-space check</strong> before imaging. Show storage-write failures in the job instead of only logging them. A "Resume" button after a crash or cancel. A <strong>simulated failing disk</strong> in WSL (device-mapper <code>error</code> segments), so tests run real ddrescue against bad sectors. One documented supervised run on real media.</td></tr>
+        <tr><td><strong>Data</strong> <span class="w">7%</span></td><td class="num">3.0 → 5</td><td class="num add">+0.14</td><td>Schema versions with migrations (<code>PRAGMA user_version</code>). Event retention and pruning. An integrity check at startup (<code>PRAGMA quick_check</code>). A small <code>jobs.db</code> backup. Record tool versions in each image's <code>.source.json</code>.</td></tr>
+        <tr><td><strong>Observability</strong> <span class="w">7%</span></td><td class="num">3.0 → 5</td><td class="num add">+0.14</td><td>Structured logs with the job id on every line. A <strong>diagnostics export</strong> button that zips the logs, job history, tool versions and drive list. A health endpoint that reports WSL and tool status.</td></tr>
+        <tr><td><strong>Technology fitness</strong> <span class="w">9%</span></td><td class="num">3.5 → 5</td><td class="num add">+0.135</td><td>A tested support matrix across Python versions in CI. Check WSL and usbipd versions at startup with clear warnings. Retire the customtkinter GUI. The platform tie is deliberate; a 5 here means <em>managing</em> it, not removing it.</td></tr>
+        <tr><td><strong>Security</strong> <span class="w">12%</span></td><td class="num">4.0 → 5</td><td class="num add">+0.12</td><td>Stop putting the API token in the page's JavaScript; use a session cookie that scripts can't read (<code>HttpOnly</code>, <code>SameSite=Strict</code>). A strict CSP with per-page nonces, which means moving the page's inline <code>onclick</code> handlers into script files. Fuzz tests for path tricks. A vulnerability scan in CI.</td></tr>
+        <tr><td><strong>Architecture</strong> <span class="w">10%</span></td><td class="num">4.0 → 5</td><td class="num add">+0.10</td><td>Delete the legacy <code>/api/ddrescue</code> and <code>/api/photorec</code> routes. Move <code>system.py</code>'s two subprocess calls into <code>execution/</code>. One execution model for long work instead of the current mix of threads and async. One supported UI.</td></tr>
+        <tr><td><strong>Scalability</strong> <span class="w">6%</span></td><td class="num">3.5 → 5</td><td class="num add">+0.09</td><td>Write each batch of events in one database transaction. Move upload writes off the event loop. Lower the transcode's priority while imaging runs. Measured benchmarks to replace the unverified "280 fps" claim.</td></tr>
+        <tr><td><strong>API</strong> <span class="w">6%</span></td><td class="num">3.5 → 5</td><td class="num add">+0.09</td><td>Proper status codes, such as 4xx for refused paths and 409 when a resource is busy. A versioned <code>/api/v1</code>. Typed responses and a published OpenAPI schema for the scripts that use the API.</td></tr>
+        <tr><td><strong>Cost</strong> <span class="w">4%</span></td><td class="num">4.5 → 5</td><td class="num add">+0.02</td><td>Comes almost for free once CI and releases cut maintenance time.</td></tr>
+      </tbody>
+      <tfoot><tr><td>Total</td><td class="num">3.6 → 5.0</td><td class="num add">+1.40</td><td></td></tr></tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">In practice</div><h2>Three phases</h2></div>
+  <div class="roadmap">
+    <div class="phase">
+      <h3>1. Automation and housekeeping</h3>
+      <p class="phase-meta"><span class="pill ok">About 4.1 after</span> <span class="effort">1–2 weeks part-time</span></p>
+      <ul class="plain">
+        <li>CI, build gate, releases</li>
+        <li>Delete the legacy routes</li>
+        <li>Free-space check</li>
+        <li>Show storage failures</li>
+        <li>Retention and migrations</li>
+        <li>Structured logs</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>2. Frontend and hardening</h3>
+      <p class="phase-meta"><span class="pill ok">About 4.5 after</span> <span class="effort">3–5 weeks</span></p>
+      <ul class="plain">
+        <li>Split the page and add browser tests</li>
+        <li>Cookie auth and nonce CSP</li>
+        <li>API v1 with proper status codes</li>
+        <li>Diagnostics export</li>
+        <li>Simulated failing disk</li>
+        <li>A real-media run</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>3. Consolidation</h3>
+      <p class="phase-meta"><span class="pill ok">5.0 after</span> <span class="effort">4–8 weeks</span></p>
+      <ul class="plain">
+        <li>One UI</li>
+        <li>One execution model</li>
+        <li>Support matrix</li>
+        <li>Benchmarks</li>
+        <li>Coverage and type-check gates</li>
+        <li>Signed releases if you share the exe</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Honest advice</div><h2>Where to stop</h2></div>
+  <ul class="plain advice">
+    <li><strong>Phase 1 is the best value.</strong> It's mostly small, safe changes, and CI protects everything after it.</li>
+    <li><strong>Stopping at about 4.5 is reasonable for a personal tool.</strong> The last half point is the most expensive: rewriting the frontend, picking one UI, and unifying the concurrency model, for a one-user app.</li>
+    <li><strong>5/5 doesn't mean perfect.</strong> At this scale it means "nothing material left to improve". Even then, the real test of a recovery tool is a failing disc, which is why the real-media run is in phase 2, not last.</li>
+  </ul>
+  <div class="callout next">
+    <p>I can start on phase 1 now. The free-space check and deleting the legacy routes are the quickest wins.</p>
+  </div>
+</section>
+
+<footer>Companion to the two architecture reviews: App-Review-V1 (rating 3.1) and App-Review-V2 (rating 3.6). Same eleven dimensions and weights, so the added points sum to the gap between 3.6 and 5.0.</footer>
+
+</div>
+</body>
+</html>

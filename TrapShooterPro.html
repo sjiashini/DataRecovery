@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrapShooterPro</title>
+
+    <!-- Same fonts and icons as VideoStudio-V3.html -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- DESIGN SYSTEM: the tokens of VideoStudio-V3.html --- */
+        :root {
+            --primaryColor: #2596be;
+            --secondaryColor: #5bc1da;
+            --tertiaryColor: #666666;
+            --quaternaryColor: #ebeaea;
+            --darkColor: #000000;
+            --lightColor: #ffffff;
+            --customColor: #0a78c1;
+            --shadowPrimary: 0 4px 8px rgba(20, 71, 108, 0.15);
+
+            --fontHeading: 'Playfair Display', serif;
+            --fontBody: 'Inter', sans-serif;
+
+            /* hero-only shades derived from the brand blues */
+            --heroInk: #0d2b3a;
+            --heroMist: #e8f5fa;
+            --clayOrange: #e8752a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 62.5%;
+            /* 1rem = 10px, as in the parent page */
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--fontBody);
+            font-size: 1.5rem;
+            color: var(--heroInk);
+            background-color: #f1f5f9;
+        }
+
+        /* --- HERO --- */
+        .hero {
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(60rem 40rem at 85% 20%, rgba(91, 193, 218, 0.35), transparent 70%),
+                linear-gradient(160deg, var(--lightColor) 0%, var(--heroMist) 100%);
+            padding: 5rem max(2.4rem, env(safe-area-inset-right, 0px)) 4rem max(2.4rem, env(safe-area-inset-left, 0px));
+        }
+
+        .hero-inner {
+            max-width: 112rem;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--primaryColor);
+            margin: 0 0 1.6rem;
+        }
+
+        .eyebrow .clay {
+            width: 1.2rem;
+            height: 1.2rem;
+            border-radius: 50%;
+            background: var(--clayOrange);
+            box-shadow: 0 0 0 3px rgba(232, 117, 42, 0.2);
+        }
+
+        .hero h1 {
+            font-family: var(--fontHeading);
+            font-size: clamp(3.2rem, 5vw, 5.4rem);
+            line-height: 1.08;
+            margin: 0 0 2rem;
+            color: var(--heroInk);
+            text-wrap: balance;
+        }
+
+        .hero h1 .brand {
+            color: var(--primaryColor);
+        }
+
+        .lead {
+            font-size: 1.8rem;
+            line-height: 1.6;
+            color: #36515f;
+            max-width: 52rem;
+            margin: 0 0 3rem;
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-bottom: 3rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.3rem 2.2rem;
+            border-radius: 0.8rem;
+            font-family: var(--fontBody);
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--primaryColor);
+            color: var(--lightColor);
+            box-shadow: var(--shadowPrimary);
+        }
+
+        .btn-primary:hover {
+            background: var(--customColor);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--lightColor);
+            color: var(--primaryColor);
+            border: 1px solid rgba(37, 150, 190, 0.35);
+        }
+
+        .btn-secondary:hover {
+            background: var(--heroMist);
+        }
+
+        .btn i {
+            font-size: 1.8rem;
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid var(--secondaryColor);
+            outline-offset: 2px;
+        }
+
+        .platforms {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            font-size: 1.3rem;
+            color: var(--tertiaryColor);
+        }
+
+        .platforms span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+
+        .platforms i {
+            color: var(--primaryColor);
+            font-size: 1.6rem;
+        }
+
+        /* --- DEVICES: CSS-drawn iPad and iPhone showing an example round --- */
+        .devices {
+            position: relative;
+            min-height: 42rem;
+        }
+
+        .ipad {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 82%;
+            aspect-ratio: 4 / 3;
+            max-width: 100%;
+            background: #1b1f23;
+            border-radius: 2.6rem;
+            padding: 1.4rem;
+            box-shadow: 0 30px 60px rgba(13, 43, 58, 0.25);
+        }
+
+        .iphone {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 38%;
+            aspect-ratio: 9 / 19;
+            max-width: 100%;
+            background: #1b1f23;
+            border-radius: 3.4rem;
+            padding: 1rem;
+            box-shadow: 0 30px 50px rgba(13, 43, 58, 0.35);
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: var(--lightColor);
+            border-radius: 1.6rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .iphone .screen {
+            border-radius: 2.6rem;
+        }
+
+        .app-bar {
+            background: var(--primaryColor);
+            color: var(--lightColor);
+            padding: 1rem 1.4rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .iphone .app-bar {
+            padding-top: 2.2rem;
+        }
+
+        .app-bar small {
+            font-weight: 500;
+            opacity: 0.85;
+        }
+
+        .score {
+            text-align: center;
+            padding: 1.2rem 0 0.6rem;
+        }
+
+        .score strong {
+            display: block;
+            font-family: var(--fontHeading);
+            font-size: 3.4rem;
+            color: var(--heroInk);
+            line-height: 1;
+        }
+
+        .score span {
+            font-size: 1rem;
+            color: var(--tertiaryColor);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .stations {
+            list-style: none;
+            margin: 0;
+            padding: 0.4rem 1.2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+
+        .stations li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1rem;
+            color: var(--tertiaryColor);
+        }
+
+        .marks {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .mark {
+            width: 1.1rem;
+            height: 1.1rem;
+            border-radius: 50%;
+            background: var(--clayOrange);
+        }
+
+        .mark.miss {
+            background: transparent;
+            border: 1.5px solid #b9c6cd;
+        }
+
+        .ipad-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.4rem;
+            padding: 1.6rem;
+            min-height: 0;
+        }
+
+        .panel {
+            background: var(--heroMist);
+            border-radius: 1rem;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel h4 {
+            margin: 0 0 1rem;
+            font-size: 1.1rem;
+            color: var(--heroInk);
+        }
+
+        .bars {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            gap: 0.8rem;
+            min-height: 6rem;
+        }
+
+        .bars div {
+            flex: 1;
+            background: var(--secondaryColor);
+            border-radius: 0.4rem 0.4rem 0 0;
+        }
+
+        .bars div.best {
+            background: var(--primaryColor);
+        }
+
+        .bar-labels {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .bar-labels span {
+            flex: 1;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--tertiaryColor);
+        }
+
+        .station-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.6rem;
+            flex: 1;
+            align-content: center;
+        }
+
+        .station-grid div {
+            background: var(--lightColor);
+            border-radius: 0.6rem;
+            text-align: center;
+            padding: 0.8rem 0;
+            font-size: 0.9rem;
+            color: var(--tertiaryColor);
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .station-grid strong {
+            display: block;
+            font-size: 1.5rem;
+            color: var(--heroInk);
+        }
+
+        .sample-note {
+            position: absolute;
+            right: 0;
+            bottom: -2.6rem;
+            font-size: 1.1rem;
+            color: var(--tertiaryColor);
+        }
+
+        /* --- FEATURES --- */
+        .features {
+            background: var(--lightColor);
+            border-top: 1px solid var(--quaternaryColor);
+            padding: 4rem max(2.4rem, env(safe-area-inset-right, 0px)) 4.4rem max(2.4rem, env(safe-area-inset-left, 0px));
+        }
+
+        .features-inner {
+            max-width: 112rem;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 2.4rem;
+        }
+
+        .feature {
+            display: flex;
+            gap: 1.4rem;
+            align-items: flex-start;
+        }
+
+        .feature i {
+            flex-shrink: 0;
+            width: 4.4rem;
+            height: 4.4rem;
+            border-radius: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--heroMist);
+            color: var(--primaryColor);
+            font-size: 1.9rem;
+        }
+
+        .feature h3 {
+            margin: 0 0 0.6rem;
+            font-family: var(--fontHeading);
+            font-size: 1.9rem;
+            color: var(--heroInk);
+        }
+
+        .feature p {
+            margin: 0;
+            line-height: 1.55;
+            color: #4a6371;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 860px) {
+            .hero-inner {
+                grid-template-columns: 1fr;
+            }
+
+            .devices {
+                min-height: 34rem;
+                max-width: 52rem;
+                width: 100%;
+                margin: 0 auto 2rem;
+            }
+
+            .features-inner {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-inner">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="clay" aria-hidden="true"></span>TrapShoot</p>
+                <h1 id="hero-title"><span class="brand">TrapShooterPro</span> for iPhone and iPad</h1>
+                <p class="lead">Score every round station by station, see your hits and misses at a glance,
+                    and watch your trap game improve, on the iPhone in your pocket or the iPad on the bench.</p>
+                <div class="cta-row">
+                    <!-- Replace "#" with the App Store link once the listing is live. -->
+                    <a class="btn btn-primary" href="#">
+                        <i class="fa-brands fa-apple" aria-hidden="true"></i>
+                        Get it on the App Store
+                    </a>
+                    <a class="btn btn-secondary" href="#features">
+                        <i class="fa-solid fa-bullseye" aria-hidden="true"></i>
+                        See the features
+                    </a>
+                </div>
+                <div class="platforms">
+                    <span><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> iPhone</span>
+                    <span><i class="fa-solid fa-tablet-screen-button" aria-hidden="true"></i> iPad</span>
+                </div>
+            </div>
+
+            <div class="devices" aria-hidden="true">
+                <div class="ipad">
+                    <div class="screen">
+                        <div class="app-bar">TrapShooterPro <small>Season · last 5 rounds</small></div>
+                        <div class="ipad-body">
+                            <div class="panel">
+                                <h4>Targets hit per round</h4>
+                                <div class="bars">
+                                    <!-- height = targets hit / 25 -->
+                                    <div style="height: 80%"></div>
+                                    <div style="height: 84%"></div>
+                                    <div style="height: 80%"></div>
+                                    <div style="height: 88%"></div>
+                                    <div class="best" style="height: 92%"></div>
+                                </div>
+                                <div class="bar-labels"><span>20</span><span>21</span><span>20</span><span>22</span><span>23</span></div>
+                            </div>
+                            <div class="panel">
+                                <h4>Hits by station, this round</h4>
+                                <div class="station-grid">
+                                    <div><strong>5</strong>1</div>
+                                    <div><strong>4</strong>2</div>
+                                    <div><strong>5</strong>3</div>
+                                    <div><strong>4</strong>4</div>
+                                    <div><strong>5</strong>5</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="iphone">
+                    <div class="screen">
+                        <div class="app-bar">Round 5 <small>16 yd</small></div>
+                        <div class="score"><strong>23/25</strong><span>targets hit</span></div>
+                        <ul class="stations">
+                            <li>St 1 <span class="marks"><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i></span></li>
+                            <li>St 2 <span class="marks"><i class="mark"></i><i class="mark miss"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i></span></li>
+                            <li>St 3 <span class="marks"><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i></span></li>
+                            <li>St 4 <span class="marks"><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark miss"></i><i class="mark"></i></span></li>
+                            <li>St 5 <span class="marks"><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i><i class="mark"></i></span></li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="sample-note">Illustration with example scores</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" id="features" aria-label="Features">
+        <div class="features-inner">
+            <div class="feature">
+                <i class="fa-solid fa-bullseye" aria-hidden="true"></i>
+                <div>
+                    <h3>Station-by-station scoring</h3>
+                    <p>Mark each target as you shoot: five stations, five targets each, a full round of 25.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
+                <div>
+                    <h3>Progress you can see</h3>
+                    <p>Compare rounds and stations to find where targets slip away, and track your best.</p>
+                </div>
+            </div>
+            <div class="feature">
+                <i class="fa-solid fa-tablet-screen-button" aria-hidden="true"></i>
+                <div>
+                    <h3>Made for iPhone and iPad</h3>
+                    <p>Quick to use on the line with an iPhone, roomy for reviewing a season on an iPad.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+
+</html>

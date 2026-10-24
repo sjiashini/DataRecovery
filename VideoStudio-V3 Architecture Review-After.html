@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VideoStudio-V3 Architecture Review (After)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a single case-file column (max ~920px) with a ruled header block, data tables in scroll containers, severity encoded as left-edge chips */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5a6575;
+  --rule: #d5dbe4;
+  --accent: #1f5aa6;
+  --accent-soft: #e3ecf8;
+  --crit: #b4232a;
+  --crit-soft: #fbe7e8;
+  --high: #c25a0c;
+  --high-soft: #fcefe2;
+  --med: #8a6a00;
+  --med-soft: #f8f1d8;
+  --low: #4b5870;
+  --low-soft: #e9edf3;
+  --ok: #1d7a46;
+  --ok-soft: #e1f3e8;
+  --bar-track: #e4e8ef;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+    --accent: #86b1ee; --accent-soft: #1c2b40;
+    --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+    --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+    --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+  --accent: #86b1ee; --accent-soft: #1c2b40;
+  --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+  --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+  --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 920px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+section { display: grid; gap: 16px; min-width: 0; }
+.section-head { display: grid; gap: 4px; border-top: 2px solid var(--fg); padding-top: 12px; }
+
+/* Header block */
+header { display: grid; gap: 20px; }
+.meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0;
+  border: 1px solid var(--rule); background: var(--surface);
+}
+.meta div { padding: 12px 14px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 2px; min-width: 0; }
+.meta dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.score-big {
+  font-family: var(--font-display); font-weight: 700; font-size: 64px; line-height: 1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.score-big small { font-size: 24px; color: var(--muted); font-weight: 500; }
+@media (max-width: 560px) { .verdict { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Lists of strengths/risks */
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.two-col > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
+ol.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+ol.plain li { padding-left: 4px; }
+
+/* Status update */
+.update { background: var(--ok-soft); border: 1px solid var(--ok); padding: 18px 20px; display: grid; gap: 12px; }
+.update h2 { color: var(--ok); font-size: 20px; }
+.update ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.scorecard td:first-child { font-weight: 500; min-width: 170px; }
+.scorecard td:nth-child(4) { min-width: 300px; }
+.gaps td:first-child { font-weight: 500; min-width: 150px; }
+.gaps td:nth-child(2), .gaps td:nth-child(3), .gaps td:nth-child(4) { min-width: 170px; }
+.gaps td:last-child { min-width: 240px; }
+.risks td:first-child { min-width: 260px; }
+.risks td:last-child { min-width: 240px; }
+tfoot td { font-weight: 600; background: var(--bg); }
+
+.bar { display: grid; grid-template-columns: 34px 80px; gap: 8px; align-items: center; }
+.bar span.track { display: block; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.bar span.fill { display: block; height: 100%; background: var(--accent); }
+.bar.low-score span.fill { background: var(--crit); }
+
+.pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+  white-space: nowrap; border: 1px solid currentColor;
+}
+.pill.crit { color: var(--crit); background: var(--crit-soft); }
+.pill.high { color: var(--high); background: var(--high-soft); }
+.pill.med { color: var(--med); background: var(--med-soft); }
+.pill.low { color: var(--low); background: var(--low-soft); }
+.pill.ok { color: var(--ok); background: var(--ok-soft); }
+.pill.conf { color: var(--muted); background: transparent; }
+tr.fixed td { background: var(--ok-soft); }
+
+/* Detailed analysis */
+.dims { display: grid; gap: 0; border: 1px solid var(--rule); background: var(--surface); }
+.dim { padding: 16px 18px; border-bottom: 1px solid var(--rule); display: grid; gap: 8px; min-width: 0; }
+.dim:last-child { border-bottom: 0; }
+.dim-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.dim-head .num { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.dim-head .s { font-family: var(--font-mono); font-size: 13px; color: var(--accent); margin-left: auto; }
+.dim dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 6px 14px; }
+.dim dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-top: 3px; }
+.dim dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .dim dl { grid-template-columns: 1fr; gap: 2px; } .dim dd { margin-bottom: 8px; } }
+
+/* Roadmap */
+.roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.phase { border-top: 3px solid var(--accent); background: var(--surface); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.phase ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.phase .dep { color: var(--muted); font-size: 13px; }
+.done { text-decoration: line-through; color: var(--muted); }
+
+.questions { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* After-review additions: before/after score pair, muted old scores, closed-gap list */
+.scores { display: flex; align-items: flex-end; gap: 14px; }
+.score-old { font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score-old small { font-size: 18px; font-weight: 500; }
+.scores .lbl { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.arrow { font-size: 28px; color: var(--muted); padding-bottom: 8px; }
+td.old { color: var(--muted); }
+.scorecard td:nth-child(4) { min-width: 0; }
+.scorecard td:nth-child(5) { min-width: 300px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+details.closed { border: 1px solid var(--rule); background: var(--surface); padding: 12px 16px; }
+details.closed summary { cursor: pointer; font-weight: 600; }
+details.closed p { margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Architecture re-review · after the fixes</div>
+  <h1>VideoStudio-V3 Architecture Review (After)</h1>
+  <dl class="meta">
+    <div><dt>System</dt><dd>CD/DVD and pen-drive recovery suite with video tools</dd></div>
+    <div><dt>Code reviewed</dt><dd>Commit <span class="mono">4558aec</span> on <a href="https://github.com/sjiashini/DataRecovery">sjiashini/DataRecovery</a></dd></div>
+    <div><dt>Target scale</dt><dd>1 user, 1 machine, 1 device at a time</dd></div>
+    <div><dt>Reviewed</dt><dd>24 Oct 2026, same day as the first review</dd></div>
+  </dl>
+  <div class="verdict">
+    <div class="scores">
+      <div class="score-old"><span class="lbl">Before</span>3.1<small>/5</small></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="score-big"><span class="lbl">After</span>3.6<small>/5</small></div>
+    </div>
+    <p>The weighted rating rises from 3.05 to 3.60. The biggest risks from the first review are closed: DNS rebinding, orphaned tools, an image resumed from the wrong disc, and work that couldn't be cancelled. The project now has version control, locked dependencies and 150 tests. What holds it below 4 is delivery automation (no CI, no build gate), missing data housekeeping (event retention, schema versions) and the 2,545-line single-file frontend. None of the fixes has yet been exercised on a real failing disc or pen drive.</p>
+  </div>
+</header>
+
+<section>
+  <div class="section-head"><div class="eyebrow">What changed since the first review</div><h2>Fixes in this round</h2></div>
+  <div class="two-col">
+    <div>
+      <h3>Security and data safety</h3>
+      <ul class="plain">
+        <li>Host and Origin checks block DNS rebinding, so the token page is no longer served to foreign host names.</li>
+        <li><code>MEDIA_ROOTS</code> enforced on inputs. Root checks resolve junctions and symlinks, and outputs must sit strictly inside a root.</li>
+        <li>Each image records its source drive. Resuming from a different disc is refused.</li>
+        <li>A per-image lock means only one tool works on an image at a time.</li>
+        <li>Media outputs can't replace recovered files, and can't land in the folder of the recovery that is running.</li>
+        <li>Quoted paths and the legacy route's unchecked conversion are fixed.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Reliability and delivery</h3>
+      <ul class="plain">
+        <li>A startup reaper stops orphaned tools, and shutdown stops running tools safely.</li>
+        <li>Cancel requests made just before a tool starts are no longer lost.</li>
+        <li>Cut, join and transcode are cancellable jobs. Separate RECOVERY and ENCODER locks let imaging and transcoding overlap.</li>
+        <li>The real ddrescue run now uses the sector size it shows.</li>
+        <li>Git with a GitHub remote, hash-locked dependencies, a folder exe build without <code>.env</code>, and a one-step setup script.</li>
+        <li><code>scripts/check.py</code>, CLAUDE.md, two skills and a reviewer agent. Tests grew from 82 to 150.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Scorecard</div><h2>Eleven dimensions, before and after</h2></div>
+  <p>Same weights as the first review. Scores are based on the code at commit <span class="mono">4558aec</span>.</p>
+  <div class="table-wrap">
+    <table class="scorecard">
+      <thead><tr><th>Dimension</th><th>Weight</th><th>Before</th><th>After</th><th>Evidence now</th><th>Conf.</th></tr></thead>
+      <tbody>
+        <tr><td>Architectural style &amp; modularity</td><td class="num">10%</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>One sub-package per layer, with a pure <code>core/</code>. Every long operation now runs as a job. The legacy routes, three UIs and mixed thread/async execution remain.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Scalability &amp; performance</td><td class="num">6%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Imaging and media work run in parallel, and media routes no longer tie up worker threads. One SQLite commit per event and blocking upload writes remain.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Reliability &amp; resilience</td><td class="num">15%</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>Reaper, per-image lock, source records, safe shutdown, cancel windows closed. Storage write errors are still only logged, and nothing has been tested on real failing media.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Security &amp; compliance</td><td class="num">12%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>Rebinding, path escapes and <code>.env</code> bundling are fixed. Inline scripts allowed by the CSP plus a global token remain.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Data architecture</td><td class="num">7%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Image source records added. Still no event retention, no schema versions, and write errors are swallowed.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Integration &amp; API design</td><td class="num">6%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Every long operation has a job id, progress and cancel. Verb-style routes, mixed status codes and the legacy routes remain.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Infrastructure &amp; DevOps</td><td class="num">12%</td><td class="num old">1.5</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Git and GitHub, locked dependencies, reproducible folder build, setup script, check script. No CI, and the build doesn't run the checks.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Observability &amp; operability</td><td class="num">7%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.0</span><span class="track"><span class="fill" style="width:60%"></span></span></div></td><td>Media jobs now report through the same event stream. Logs are still free text with no job id, and there's no diagnostics export.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Maintainability &amp; tech debt</td><td class="num">12%</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>150 tests, including the HTTP guard, routes and adapters, plus CLAUDE.md, a check script and a synced README. The 2,545-line page and three UIs remain.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Technology fitness &amp; lifecycle</td><td class="num">9%</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Tools are found on the live PATH and setup is scripted. Still tied to Windows, WSL2, usbipd and NVIDIA, and customtkinter is barely maintained.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Cost efficiency</td><td class="num">4%</td><td class="num old">4.5</td><td><div class="bar"><span class="mono">4.5</span><span class="track"><span class="fill" style="width:90%"></span></span></div></td><td>Still all open source and local. Scripted setup lowers maintainer time.</td><td><span class="pill conf">H</span></td></tr>
+      </tbody>
+      <tfoot><tr><td>Weighted total</td><td class="num">100%</td><td class="num old">3.05</td><td class="num">3.60</td><td colspan="2">Rounded: 3.1 before, 3.6 after</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Detailed analysis</div><h2>Where each dimension stands now</h2></div>
+  <div class="dims">
+    <article class="dim">
+      <div class="dim-head"><span class="num">01</span><h3>Architectural style</h3><span class="s">3.5 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>The four root modules now live inside <code>vs_app</code>, which has one sub-package per layer. <code>core/</code> has no I/O, since the token file moved to <code>storage/</code>. Recovery, repair and media all run as jobs through one launcher, and the locks are named after the resources they protect.</dd>
+        <dt>Remaining</dt><dd>The legacy <code>/api/ddrescue</code> and <code>/api/photorec</code> routes still run tools inside the request. Repair and media run blocking code in threads, while recovery uses async subprocesses. There are still three UIs.</dd>
+        <dt>Why</dt><dd>Deleting the legacy routes is the cheapest step to a single execution path.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">02</span><h3>Scalability &amp; performance</h3><span class="s">3.0 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Splitting the RECOVERY and ENCODER locks lets a drive be imaged or carved while a video is transcoded. Media routes now wait on a job instead of holding a worker thread.</dd>
+        <dt>Remaining</dt><dd>Each log event is still its own SQLite commit. Uploads still write with blocking calls inside the async handler. A transcode and an imaging run now share disk and CPU, which may slow imaging on a failing disc.</dd>
+        <dt>Why</dt><dd>These limits only show under heavy use, which is rare for one user.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">03</span><h3>Reliability &amp; resilience</h3><span class="s">3.5 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Orphaned tools are reaped at startup. Each image has a lock held by the kernel, so no stale lock can be left behind. Images record which drive made them, and a resume from a different one is refused. Cancel can no longer be lost before a tool starts, shutdown stops tools with SIGINT, and Share/Release are blocked during imaging.</dd>
+        <dt>Remaining</dt><dd>Storage write failures are only logged. Images made before today have no source record, so two pen drives of the same model and size can't be told apart for those. TestDisk still writes a stray <code>testdisk.log</code> into the backend's folder. None of this has been tested on a real failing disc.</dd>
+        <dt>Why</dt><dd>The safety logic is in place and unit-tested. One supervised real recovery would raise confidence from medium to high.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">04</span><h3>Security &amp; compliance</h3><span class="s">3.0 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Every request needs a loopback Host, and state-changing requests from another origin are refused; both were checked against a live server. Media inputs are sandboxed. Root checks resolve links and refuse the root folder itself. Quoted paths are handled the same everywhere. <code>.env</code> is never bundled into the exe.</dd>
+        <dt>Remaining</dt><dd>The CSP still allows inline scripts while the token sits in a page global, so any XSS would mean full API access. The rate limiter does nothing on loopback. The repository is public, so any future commit of personal data would be published.</dd>
+        <dt>Why</dt><dd>On a one-user machine the realistic attacker was a web page; that path is closed.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">05</span><h3>Data architecture</h3><span class="s">3.0 → 3.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Each image now has a <code>.source.json</code> record, and the mapfile extent is used as a second identity check.</dd>
+        <dt>Remaining</dt><dd>The events table still grows without limit. There's no <code>user_version</code> or migration path, and persistence errors are still swallowed in the write pump.</dd>
+        <dt>Why</dt><dd>Low risk today. It becomes a real problem at the first schema change.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">06</span><h3>Integration &amp; API design</h3><span class="s">3.0 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Cut, join and transcode keep their old response shape and add a <code>job_id</code>. New <code>/api/media_progress</code> and <code>/api/media_cancel</code> endpoints exist, and busy messages name the resource that is in use.</dd>
+        <dt>Remaining</dt><dd>Routes are still named as verbs, policy errors still return HTTP 200 with <code>success:false</code>, the legacy routes are still there, and nothing is versioned.</dd>
+        <dt>Why</dt><dd>Fine for one in-repo client; it matters only if a second client appears.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">07</span><h3>Infrastructure &amp; DevOps</h3><span class="s">1.5 → 3.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>The code is on GitHub. Dependencies are locked with hashes and work on Windows and Linux for Python 3.10+. The exe builds as a folder in a private environment from the lock. Setup is one re-runnable script, and <code>scripts/check.py</code> verifies a change in one command.</dd>
+        <dt>Remaining</dt><dd>There is no CI, although GitHub Actions is now possible. <code>build_exe.bat</code> doesn't run the checks before building. The exe is unsigned, which is acceptable for personal use.</dd>
+        <dt>Why</dt><dd>The biggest single gain of this round. CI is the last large step in this dimension.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">08</span><h3>Observability &amp; operability</h3><span class="s">3.0 → 3.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Media jobs appear in the same job history and event stream as recovery and repair.</dd>
+        <dt>Remaining</dt><dd>Log lines carry no job id, tool output is cut off mid-line, and there's no diagnostics export.</dd>
+        <dt>Why</dt><dd>When a long run fails, the log is still hard to tie to a job.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">09</span><h3>Maintainability &amp; tech debt</h3><span class="s">3.0 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Tests grew from 82 to 150 and now cover the HTTP guard, recovery and media routes, adapter cancel paths, locks and the client scripts. CLAUDE.md records the rules, and the README matches the code.</dd>
+        <dt>Remaining</dt><dd>The 2,545-line HTML file with inline JavaScript remains, and the browser UI has no tests. There are three UIs, and the mixed thread/async model remains.</dd>
+        <dt>Why</dt><dd>The riskiest code now has tests; the frontend is the main untested surface.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">10</span><h3>Technology fitness &amp; lifecycle</h3><span class="s">3.5 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Tools installed while the app runs are found without a restart, and the setup script detects and installs every external tool.</dd>
+        <dt>Remaining</dt><dd>The app is still tied to Windows 11, WSL2, usbipd-win and NVIDIA NVENC, customtkinter is barely maintained, and there is no cross-version test run.</dd>
+        <dt>Why</dt><dd>The platform tie is deliberate. Cross-version tests would come with CI.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">11</span><h3>Cost efficiency</h3><span class="s">4.5 → 4.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Scripted setup and one-command checks reduce maintainer time.</dd>
+        <dt>Remaining</dt><dd>Nothing to pay. Code signing was skipped on purpose.</dd>
+        <dt>Why</dt><dd>Cost was never a constraint.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Gap analysis</div><h2>What is still open</h2></div>
+  <div class="table-wrap">
+    <table class="gaps">
+      <thead><tr><th>Gap</th><th>Current</th><th>Target</th><th>Impact</th><th>Severity</th><th>Effort</th><th>Remediation</th></tr></thead>
+      <tbody>
+        <tr><td>Real-hardware validation</td><td>Fixes tested in unit tests and live with generated images only</td><td>One supervised recovery of a real pen drive and disc</td><td>An untested path could still misbehave on failing media</td><td><span class="pill high">High</span></td><td class="num">S</td><td>Image a spare pen drive, swap discs mid-session, cancel during imaging, and confirm the refusals and the resume</td></tr>
+        <tr><td>CI</td><td>None</td><td>GitHub Actions running the tests on every push</td><td>Regressions reach main unnoticed</td><td><span class="pill high">High</span></td><td class="num">S</td><td>A workflow running <code>python scripts/check.py --quick</code> on Windows and Linux runners</td></tr>
+        <tr><td>Build gate</td><td><code>build_exe.bat</code> builds without testing</td><td>Build refuses when checks fail</td><td>A broken exe can be packaged</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Run <code>scripts\check.py --quick</code> first in <code>build_exe.bat</code></td></tr>
+        <tr><td>Legacy routes</td><td><code>/api/ddrescue</code>, <code>/api/photorec</code> run inside the request</td><td>Removed</td><td>Uncancellable hours-long requests</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Delete them and their entries in the page&#39;s API list; nothing calls them</td></tr>
+        <tr><td>Stray TestDisk log</td><td>TestDisk writes <code>testdisk.log</code> into the backend folder</td><td>Logs stay beside the image</td><td>Clutter, with image paths in it</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Start TestDisk with the image folder as its working directory</td></tr>
+        <tr><td>Event retention and schema version</td><td>Unbounded; no versioning</td><td>Pruning and numbered migrations</td><td>Database growth; risky upgrades</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Prune at startup; <code>PRAGMA user_version</code> migrations</td></tr>
+        <tr><td>Quiet persistence failures</td><td>Write errors only logged</td><td>Visible in the job and the UI</td><td>History silently stops on a full disk</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Mark the job and surface a warning when a write fails</td></tr>
+        <tr><td>Structured logs</td><td>Free text, no job id</td><td>Job id on every line; diagnostics export</td><td>Hard to debug failures</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>A logger adapter per job; <code>/api/diagnostics</code></td></tr>
+        <tr><td>Upload writes</td><td>Blocking writes in an async handler</td><td>Writes off the event loop</td><td>Live progress stalls during big uploads</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Write chunks with <code>asyncio.to_thread</code></td></tr>
+        <tr><td>Frontend monolith and CSP</td><td>2,545-line HTML; inline scripts allowed</td><td>Separate files; nonce-based CSP</td><td>XSS would expose the token</td><td><span class="pill low">Low</span></td><td class="num">M</td><td>Extract the script and serve it as a static file</td></tr>
+        <tr><td>Three UIs</td><td>Web, desktop GUI, script</td><td>One supported UI</td><td>Every feature built twice</td><td><span class="pill low">Low</span></td><td class="num">M</td><td>Freeze or retire the desktop GUI</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <details class="closed">
+    <summary>Closed since the first review (12)</summary>
+    <p>DNS rebinding; media input sandbox; orphaned tools; per-image lock; images resumed from the wrong disc; media outputs overwriting recovered data; sector size mismatch; lost cancels; Share/Release during imaging; tools left running on shutdown; uncancellable media jobs and the single global lock; version control, dependency locking, <code>.env</code> in the exe, environment setup and doc drift.</p>
+  </details>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Prioritised roadmap</div><h2>Next steps, in order</h2></div>
+  <div class="roadmap">
+    <div class="phase">
+      <h3>Quick wins · 0–3 months</h3>
+      <ol>
+        <li>One supervised real recovery to validate the safety fixes</li>
+        <li>GitHub Actions running the tests on push</li>
+        <li>Build gate in <code>build_exe.bat</code></li>
+        <li>Delete the legacy single-tool routes</li>
+        <li>TestDisk working folder fix</li>
+      </ol>
+    </div>
+    <div class="phase">
+      <h3>Mid-term · 3–9 months</h3>
+      <ol>
+        <li>Event retention and schema migrations</li>
+        <li>Surface persistence failures in the job</li>
+        <li>Job ids on log lines; diagnostics export</li>
+        <li>Upload writes off the event loop</li>
+      </ol>
+    </div>
+    <div class="phase">
+      <h3>Strategic · 9+ months</h3>
+      <ol>
+        <li>Keep one UI and retire or freeze the others</li>
+        <li>Split the page into files with a nonce-based CSP. <span class="dep">Easier once there is one UI.</span></li>
+        <li>Signed installer, only if the exe is shared</li>
+        <li>Native Windows imaging for USB flash, to reduce the usbipd dependency</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Risk register</div><h2>Top risks now</h2></div>
+  <div class="table-wrap">
+    <table class="risks">
+      <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>A safety fix behaves differently on real failing media than in tests</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>One supervised recovery on spare media before relying on it</td></tr>
+        <tr><td>A regression lands on main without anyone running the tests</td><td><span class="pill med">Med</span></td><td><span class="pill med">Med</span></td><td>CI plus the build gate</td></tr>
+        <tr><td>A WSL or usbipd update breaks attach or tool calls</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>Setup check reports tool versions; a smoke test after updates</td></tr>
+        <tr><td>Personal data gets committed to the public repo</td><td><span class="pill low">Low</span></td><td><span class="pill med">Med</span></td><td><code>.gitignore</code> covers images, records, <code>.runtime</code> and <code>.env</code>; review <code>docs/</code> before committing</td></tr>
+        <tr><td>Job history silently stops on a full disk</td><td><span class="pill low">Low</span></td><td><span class="pill low">Low</span></td><td>Surface persistence failures; prune events</td></tr>
+        <tr class="fixed"><td>Two writers corrupt an image; a web page drives the API; a runaway transcode blocks imaging</td><td><span class="pill ok">Closed</span></td><td><span class="pill high">High</span></td><td>Image lock and reaper; Host/Origin checks; cancellable media jobs and split locks</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Assumptions and open questions</div><h2>What would raise confidence</h2></div>
+  <p>Assumed, as before: one user on one machine, a personal tool, and Windows 11 with WSL2 and an NVIDIA GPU as fixed requirements.</p>
+  <ol class="questions">
+    <li><strong>Has a real recovery been run since the fixes?</strong> Reliability confidence stays medium until one has.</li>
+    <li><strong>Is the repo meant to stay public?</strong> If others will use it, CI, signing and an installer gain weight.</li>
+    <li><strong>Which UI should survive?</strong> That decision unlocks the frontend and maintainability work.</li>
+    <li><strong>How long are typical PhotoRec runs?</strong> That decides how urgent event retention is.</li>
+  </ol>
+</section>
+
+<footer>Re-scored from the source at commit <span class="mono">4558aec</span> (about 5,700 lines of application Python, 1,700 lines of tests, and the web page) and from <code>scripts/check.py</code> runs on 24 Oct 2026: 150 tests passing and a live smoke test. Weights are unchanged from the first review, so the two ratings are directly comparable.</footer>
+
+</div>
+</body>
+</html>

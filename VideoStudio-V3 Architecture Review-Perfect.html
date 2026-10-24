@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VideoStudio-V3 Architecture Review (V3)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a single case-file column (max ~920px) with a ruled header block, data tables in scroll containers, severity encoded as left-edge chips */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #18202b;
+  --muted: #5a6575;
+  --rule: #d5dbe4;
+  --accent: #1f5aa6;
+  --accent-soft: #e3ecf8;
+  --crit: #b4232a;
+  --crit-soft: #fbe7e8;
+  --high: #c25a0c;
+  --high-soft: #fcefe2;
+  --med: #8a6a00;
+  --med-soft: #f8f1d8;
+  --low: #4b5870;
+  --low-soft: #e9edf3;
+  --ok: #1d7a46;
+  --ok-soft: #e1f3e8;
+  --bar-track: #e4e8ef;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+    --accent: #86b1ee; --accent-soft: #1c2b40;
+    --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+    --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+    --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --fg: #e4e9f0; --muted: #98a3b3; --rule: #2b3543;
+  --accent: #86b1ee; --accent-soft: #1c2b40;
+  --crit: #f08a8f; --crit-soft: #3a1d21; --high: #f3a566; --high-soft: #3a2717;
+  --med: #e2c35a; --med-soft: #332b12; --low: #aab6c8; --low-soft: #242d3a;
+  --ok: #6fd39a; --ok-soft: #153325; --bar-track: #26303d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 920px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+section { display: grid; gap: 16px; min-width: 0; }
+.section-head { display: grid; gap: 4px; border-top: 2px solid var(--fg); padding-top: 12px; }
+
+/* Header block */
+header { display: grid; gap: 20px; }
+.meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0;
+  border: 1px solid var(--rule); background: var(--surface);
+}
+.meta div { padding: 12px 14px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 2px; min-width: 0; }
+.meta dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.score-big {
+  font-family: var(--font-display); font-weight: 700; font-size: 64px; line-height: 1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.score-big small { font-size: 24px; color: var(--muted); font-weight: 500; }
+@media (max-width: 560px) { .verdict { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Lists of strengths/risks */
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.two-col > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
+ol.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+ol.plain li { padding-left: 4px; }
+
+/* Status update */
+.update { background: var(--ok-soft); border: 1px solid var(--ok); padding: 18px 20px; display: grid; gap: 12px; }
+.update h2 { color: var(--ok); font-size: 20px; }
+.update ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.scorecard td:first-child { font-weight: 500; min-width: 170px; }
+.scorecard td:nth-child(4) { min-width: 300px; }
+.gaps td:first-child { font-weight: 500; min-width: 150px; }
+.gaps td:nth-child(2), .gaps td:nth-child(3), .gaps td:nth-child(4) { min-width: 170px; }
+.gaps td:last-child { min-width: 240px; }
+.risks td:first-child { min-width: 260px; }
+.risks td:last-child { min-width: 240px; }
+tfoot td { font-weight: 600; background: var(--bg); }
+
+.bar { display: grid; grid-template-columns: 34px 80px; gap: 8px; align-items: center; }
+.bar span.track { display: block; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.bar span.fill { display: block; height: 100%; background: var(--accent); }
+.bar.low-score span.fill { background: var(--crit); }
+
+.pill {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+  white-space: nowrap; border: 1px solid currentColor;
+}
+.pill.crit { color: var(--crit); background: var(--crit-soft); }
+.pill.high { color: var(--high); background: var(--high-soft); }
+.pill.med { color: var(--med); background: var(--med-soft); }
+.pill.low { color: var(--low); background: var(--low-soft); }
+.pill.ok { color: var(--ok); background: var(--ok-soft); }
+.pill.conf { color: var(--muted); background: transparent; }
+tr.fixed td { background: var(--ok-soft); }
+
+/* Detailed analysis */
+.dims { display: grid; gap: 0; border: 1px solid var(--rule); background: var(--surface); }
+.dim { padding: 16px 18px; border-bottom: 1px solid var(--rule); display: grid; gap: 8px; min-width: 0; }
+.dim:last-child { border-bottom: 0; }
+.dim-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.dim-head .num { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.dim-head .s { font-family: var(--font-mono); font-size: 13px; color: var(--accent); margin-left: auto; }
+.dim dl { margin: 0; display: grid; grid-template-columns: 92px 1fr; gap: 6px 14px; }
+.dim dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-top: 3px; }
+.dim dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { .dim dl { grid-template-columns: 1fr; gap: 2px; } .dim dd { margin-bottom: 8px; } }
+
+/* Roadmap */
+.roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.phase { border-top: 3px solid var(--accent); background: var(--surface); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.phase ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.phase .dep { color: var(--muted); font-size: 13px; }
+.done { text-decoration: line-through; color: var(--muted); }
+
+.questions { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* After-review additions: before/after score pair, muted old scores, closed-gap list */
+.scores { display: flex; align-items: flex-end; gap: 14px; }
+.score-old { font-family: var(--font-display); font-weight: 600; font-size: 40px; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score-old small { font-size: 18px; font-weight: 500; }
+.scores .lbl { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.arrow { font-size: 28px; color: var(--muted); padding-bottom: 8px; }
+td.old { color: var(--muted); }
+.scorecard td:nth-child(4) { min-width: 0; }
+.scorecard td:nth-child(5) { min-width: 300px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+details.closed { border: 1px solid var(--rule); background: var(--surface); padding: 12px 16px; }
+details.closed summary { cursor: pointer; font-weight: 600; }
+details.closed p { margin-top: 8px; }
+
+/* Rating-roadmap additions: callouts, the per-dimension plan table, phase cards */
+.callout { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 12px 16px; }
+.callout.next { background: var(--ok-soft); border-left-color: var(--ok); }
+.path td:first-child { min-width: 170px; }
+.path td:last-child { min-width: 360px; }
+.path .w { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-weight: 400; }
+.path td.add { color: var(--ok); font-weight: 500; }
+.phase-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
+.phase-meta .effort { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.phase ul.plain { font-size: 14px; gap: 6px; }
+ul.advice { gap: 12px; }
+
+/* V3 additions: three-review scorecard, change table, finished phase */
+.scorecard.v3 td:nth-child(5) { min-width: 0; }
+.scorecard.v3 td:nth-child(6) { min-width: 300px; }
+.changes td:first-child { min-width: 170px; }
+.changes td:nth-child(2) { min-width: 340px; }
+.changes td:last-child { color: var(--muted); font-size: 13px; min-width: 130px; }
+.phase.done-phase { border-top-color: var(--ok); }
+.phase li.done { text-decoration: line-through; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Architecture review V3 · after phase 1 of the 5/5 roadmap</div>
+  <h1>VideoStudio-V3 Architecture Review (V3)</h1>
+  <dl class="meta">
+    <div><dt>System</dt><dd>CD/DVD and pen-drive recovery suite with video tools</dd></div>
+    <div><dt>Code reviewed</dt><dd>Commit <span class="mono">9156c80</span> on <code>main</code>, <a href="https://github.com/sjiashini/DataRecovery">sjiashini/DataRecovery</a></dd></div>
+    <div><dt>CI</dt><dd>Green on run <span class="mono">40106605543</span>: Windows and Linux, Python 3.10 and 3.14</dd></div>
+    <div><dt>Reviewed</dt><dd>24 Oct 2026</dd></div>
+  </dl>
+  <div class="verdict">
+    <div class="scores">
+      <div class="score-old"><span class="lbl">V1</span>3.1</div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="score-old"><span class="lbl">V2</span>3.6</div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="score-big"><span class="lbl">V3</span>4.0<small>/5</small></div>
+    </div>
+    <p>Phase 1 moved the weighted rating from 3.60 to 3.99, which rounds to 4.0; the roadmap had estimated about 4.1. The gains landed where planned: DevOps, Data, Observability and Reliability, plus Architecture from deleting the legacy routes. CI also caught a real bug on its first run: the app could not start on Python 3.10 or 3.11. It is not a 5 yet. Phase 2 (frontend split, cookie auth and nonce CSP, API v1, diagnostics, a simulated failing disk, a real-media run) and phase 3 are still ahead.</p>
+  </div>
+</header>
+
+<section>
+  <div class="section-head"><div class="eyebrow">What phase 1 changed</div><h2>Six roadmap items, plus one bug fix</h2></div>
+  <div class="table-wrap">
+    <table class="changes">
+      <thead><tr><th>Change</th><th>What it does now</th><th>Dimension</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Free-space check</strong></td><td>Before imaging, the backend and the desktop GUI check the destination has room for the rest of the image plus 0.5 GB, and refuse with both numbers if not. A resumed image only needs room for what's left.</td><td>Reliability</td></tr>
+        <tr><td><strong>Legacy routes deleted</strong></td><td><code>/api/ddrescue</code> and <code>/api/photorec</code> are gone, about 100 lines, along with their entries in the page's API list. Every recovery tool now runs through the job system.</td><td>Architecture, Security</td></tr>
+        <tr><td><strong>Storage failures shown</strong></td><td>When job history can't be saved, the job shows a one-time warning and keeps running. The warning is never saved, so it can't loop. The two copies of the save loop are now one.</td><td>Reliability, Data</td></tr>
+        <tr><td><strong>Migrations and retention</strong></td><td>The jobs database carries a schema version with a <code>MIGRATIONS</code> path. A database written by a newer version is refused rather than damaged. History keeps the newest 200 finished jobs and prunes older ones at startup.</td><td>Data</td></tr>
+        <tr><td><strong>Job id in logs</strong></td><td>Every log line carries <code>job=&lt;id&gt;</code>, inherited by background threads. Each job logs its start and its end.</td><td>Observability</td></tr>
+        <tr><td><strong>Build gate, CI, releases</strong></td><td><code>build_exe.bat</code> refuses to build when the checks fail. CI runs compile, ruff and the tests on every push, on Windows and Linux with Python 3.10 and 3.14. A release workflow builds and publishes the exe when a <code>v*</code> tag is pushed.</td><td>DevOps, Technology fitness</td></tr>
+        <tr class="fixed"><td><strong>Bug found by CI</strong></td><td>A backslash inside an f-string expression stopped the app from starting on Python 3.10 and 3.11, although the README promises 3.10+. It's fixed, and CLAUDE.md warns about 3.12-only syntax.</td><td>Technology fitness</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Scorecard</div><h2>Eleven dimensions across three reviews</h2></div>
+  <p>Same weights as V1 and V2, so the totals compare directly. Scores are based on the code at commit <span class="mono">9156c80</span>.</p>
+  <div class="table-wrap">
+    <table class="scorecard v3">
+      <thead><tr><th>Dimension</th><th>Weight</th><th>V1</th><th>V2</th><th>V3</th><th>Evidence now</th><th>Conf.</th></tr></thead>
+      <tbody>
+        <tr><td>Architectural style &amp; modularity</td><td class="num">10%</td><td class="num old">3.5</td><td class="num old">4.0</td><td><div class="bar"><span class="mono">4.5</span><span class="track"><span class="fill" style="width:90%"></span></span></div></td><td>The legacy bypass routes are gone, so every tool runs through the job system. Remaining: two subprocess calls in <code>system.py</code>, mixed thread/async execution, three UIs.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Scalability &amp; performance</td><td class="num">6%</td><td class="num old">3.0</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Unchanged: still one SQLite commit per event, blocking upload writes, and no benchmarks.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Reliability &amp; resilience</td><td class="num">15%</td><td class="num old">3.5</td><td class="num old">4.0</td><td><div class="bar"><span class="mono">4.5</span><span class="track"><span class="fill" style="width:90%"></span></span></div></td><td>Free-space check and storage warnings added. Missing: a Resume button, a simulated failing disk, and a real-media run.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Security &amp; compliance</td><td class="num">12%</td><td class="num old">3.0</td><td class="num old">4.0</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>Two fewer routes to attack. The token still sits in page JavaScript, inline scripts are still allowed, and there's no vulnerability scan.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Data architecture</td><td class="num">7%</td><td class="num old">3.0</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>Schema versions, migrations, retention, and visible write failures. Missing: an integrity check, a database backup, and tool versions in source records.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Integration &amp; API design</td><td class="num">6%</td><td class="num old">3.0</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Cleaner after the legacy routes went. Still HTTP 200 for refusals, no <code>/api/v1</code>, and no published schema.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Infrastructure &amp; DevOps</td><td class="num">12%</td><td class="num old">1.5</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>CI on four platform/version combinations, a lint gate, a build gate, and a release workflow. Missing: type checking, <code>pip-audit</code>, automatic lock updates, and a first real release.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Observability &amp; operability</td><td class="num">7%</td><td class="num old">3.0</td><td class="num old">3.0</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>Job ids on every line, plus job start and end lines. Missing: a diagnostics export, and a health endpoint that reports WSL and tool status.</td><td><span class="pill conf">M</span></td></tr>
+        <tr><td>Maintainability &amp; tech debt</td><td class="num">12%</td><td class="num old">3.0</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">3.5</span><span class="track"><span class="fill" style="width:70%"></span></span></div></td><td>163 tests, with lint enforced in CI. The 2,585-line page has no browser tests, and there's no coverage gate, no type hints and no decision records.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Technology fitness &amp; lifecycle</td><td class="num">9%</td><td class="num old">3.5</td><td class="num old">3.5</td><td><div class="bar"><span class="mono">4.0</span><span class="track"><span class="fill" style="width:80%"></span></span></div></td><td>The promised Python 3.10+ support is now tested, and it found a real break. Missing: WSL and usbipd version checks at startup, and retiring customtkinter.</td><td><span class="pill conf">H</span></td></tr>
+        <tr><td>Cost efficiency</td><td class="num">4%</td><td class="num old">4.5</td><td class="num old">4.5</td><td><div class="bar"><span class="mono">4.5</span><span class="track"><span class="fill" style="width:90%"></span></span></div></td><td>Free CI minutes on a public repo, and less maintainer time thanks to the automated checks.</td><td><span class="pill conf">H</span></td></tr>
+      </tbody>
+      <tfoot><tr><td>Weighted total</td><td class="num">100%</td><td class="num old">3.05</td><td class="num old">3.60</td><td class="num">3.99</td><td colspan="2">Rounded: 3.1 → 3.6 → 4.0</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Detailed analysis</div><h2>Where each dimension stands after phase 1</h2></div>
+  <div class="dims">
+    <article class="dim">
+      <div class="dim-head"><span class="num">01</span><h3>Architectural style</h3><span class="s">4.0 → 4.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>The legacy routes ran ddrescue and PhotoRec inside the HTTP request, outside the job system, with no cancel. They're gone, so every recovery tool now runs as a job.</dd>
+        <dt>Remaining</dt><dd><code>system.py</code> still starts two subprocesses itself: the tool probe and the TestDisk window. Repair and media still run blocking code in threads, while recovery uses async subprocesses. There are still three UIs.</dd>
+        <dt>To reach 5</dt><dd>Move those two calls into <code>execution/</code>, use one execution model for long work, and keep one UI.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">02</span><h3>Scalability &amp; performance</h3><span class="s">3.5 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Nothing targeted in phase 1.</dd>
+        <dt>Remaining</dt><dd>One SQLite commit per event, blocking upload writes, no lower priority for a transcode during imaging, and the unverified "280 fps" claim.</dd>
+        <dt>To reach 5</dt><dd>Write event batches in one transaction, move upload writes off the event loop, lower the transcode's priority, and replace the claim with measured benchmarks.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">03</span><h3>Reliability &amp; resilience</h3><span class="s">4.0 → 4.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Imaging no longer starts when it can't finish: a 64 GB pen drive onto 20 GB of free space is refused up front instead of failing hours in. A full disk under <code>.runtime</code> now shows a warning in the job instead of silently stopping its history.</dd>
+        <dt>Remaining</dt><dd>No Resume button after a crash or cancel, no simulated failing disk in the tests, and no documented run on real failing media.</dd>
+        <dt>To reach 5</dt><dd>The device-mapper <code>error</code> test harness plus one supervised real-media run. Confidence stays medium until then.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">04</span><h3>Security &amp; compliance</h3><span class="s">4.0 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Two routes fewer. The old ones wrote images outside the job system's checks.</dd>
+        <dt>Remaining</dt><dd>The API token sits in the page's JavaScript, and the CSP allows inline scripts, so any XSS would mean full API access. No vulnerability scan in CI, and no fuzz tests for path tricks.</dd>
+        <dt>To reach 5</dt><dd>A session cookie scripts can't read (<code>HttpOnly</code>, <code>SameSite=Strict</code>), a nonce-based CSP, <code>pip-audit</code> in CI, and path fuzz tests.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">05</span><h3>Data architecture</h3><span class="s">3.0 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd><code>PRAGMA user_version</code> with a migrations table. A database from a newer version is refused instead of damaged. History is pruned to 200 finished jobs, events without a job are removed, and failed writes are visible.</dd>
+        <dt>Remaining</dt><dd>No <code>PRAGMA quick_check</code> at startup, no <code>jobs.db</code> backup, and tool versions aren't recorded in <code>.source.json</code>.</dd>
+        <dt>To reach 5</dt><dd>Those three, all small.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">06</span><h3>Integration &amp; API design</h3><span class="s">3.5 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>The API is smaller and has a single path for each operation.</dd>
+        <dt>Remaining</dt><dd>Refusals still return HTTP 200 with <code>success:false</code>. There's no <code>/api/v1</code> prefix and no typed responses or OpenAPI schema for the scripts that call it.</dd>
+        <dt>To reach 5</dt><dd>4xx and 409 status codes, <code>/api/v1</code>, and a published schema.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">07</span><h3>Infrastructure &amp; DevOps</h3><span class="s">3.0 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>CI is green on run <span class="mono">40106605543</span> for <code>main</code> and <span class="mono">40106364129</span> for the branch. It covers Windows and Linux with Python 3.10 and 3.14, and every job lints and runs 163 tests. The build refuses to package failing code. Both workflows pass <code>actionlint</code>.</dd>
+        <dt>Remaining</dt><dd>No type checker, no <code>pip-audit</code>, and no automatic lock-update PRs. The release workflow hasn't run yet because no <code>v*</code> tag has been pushed. The 3 ffmpeg tests skip on GitHub's runners because they lack ffmpeg.</dd>
+        <dt>To reach 5</dt><dd>Add the two checks, automate lock updates, install ffmpeg in CI, and cut the first tagged release.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">08</span><h3>Observability &amp; operability</h3><span class="s">3.0 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>A live test logged <code>job=ad773fc2 … media job ad773fc2 started</code> and <code>… cancelled</code>, so lines from one job can now be found together.</dd>
+        <dt>Remaining</dt><dd>No diagnostics export, no health endpoint that reports WSL and tool status, and tool output is still cut off mid-line.</dd>
+        <dt>To reach 5</dt><dd>A diagnostics button that zips the logs, job history, tool versions and drive list, plus a richer health endpoint.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">09</span><h3>Maintainability &amp; tech debt</h3><span class="s">3.5 → 3.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>Tests grew from 150 to 163, and lint is enforced on every push.</dd>
+        <dt>Remaining</dt><dd>The page grew to 2,585 lines and has no browser tests. There's no coverage gate, no type hints and no decision records.</dd>
+        <dt>To reach 5</dt><dd>Split the page, add Playwright tests, add a type-check gate and a coverage minimum of around 85%, and write short decision records. That's phase 2 and phase 3 work.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">10</span><h3>Technology fitness &amp; lifecycle</h3><span class="s">3.5 → 4.0</span></div>
+      <dl>
+        <dt>Improved</dt><dd>The support promise is now tested on every push, and the first run proved its worth by finding the 3.10/3.11 startup break.</dd>
+        <dt>Remaining</dt><dd>No WSL or usbipd version checks at startup, and customtkinter is still in use.</dd>
+        <dt>To reach 5</dt><dd>Startup compatibility warnings and retiring the desktop GUI.</dd>
+      </dl>
+    </article>
+    <article class="dim">
+      <div class="dim-head"><span class="num">11</span><h3>Cost efficiency</h3><span class="s">4.5 → 4.5</span></div>
+      <dl>
+        <dt>Improved</dt><dd>CI is free on a public repository, and the automation saves maintainer time.</dd>
+        <dt>Remaining</dt><dd>Nothing material.</dd>
+        <dt>To reach 5</dt><dd>Comes with the release automation.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Gap analysis</div><h2>What is still open after phase 1</h2></div>
+  <div class="table-wrap">
+    <table class="gaps">
+      <thead><tr><th>Gap</th><th>Current</th><th>Target</th><th>Impact</th><th>Severity</th><th>Effort</th><th>Remediation</th></tr></thead>
+      <tbody>
+        <tr><td>Real-media validation</td><td>Safety fixes tested with generated images only</td><td>One documented supervised run</td><td>An untested path could misbehave on failing media</td><td><span class="pill high">High</span></td><td class="num">S</td><td>Image a spare pen drive, swap discs mid-session, cancel and resume</td></tr>
+        <tr><td>Simulated failing disk</td><td>None</td><td>ddrescue tested against injected bad sectors</td><td>Retry and partial paths untested</td><td><span class="pill high">High</span></td><td class="num">M</td><td>device-mapper <code>error</code> segments in WSL, run in a test</td></tr>
+        <tr><td>Token in page JavaScript; inline scripts</td><td>Global token; CSP allows inline scripts</td><td>HttpOnly cookie; nonce CSP</td><td>XSS would mean full API access</td><td><span class="pill med">Med</span></td><td class="num">M</td><td>Move <code>onclick</code> handlers into script files, then tighten the CSP</td></tr>
+        <tr><td>Frontend monolith</td><td>2,585-line page, no browser tests</td><td>Split files; Playwright tests</td><td>UI changes are unverified</td><td><span class="pill med">Med</span></td><td class="num">M</td><td>Extract the JS and CSS; add smoke tests for cut, join and recovery</td></tr>
+        <tr><td>Supply-chain and type checks</td><td>Lint only</td><td><code>pip-audit</code> and a type checker in CI</td><td>Vulnerable or mistyped code merges unnoticed</td><td><span class="pill med">Med</span></td><td class="num">S</td><td>Two more CI steps</td></tr>
+        <tr><td>Diagnostics export</td><td>Logs and history are separate</td><td>One zip with logs, jobs, tool versions and drives</td><td>Slow to debug a failed run</td><td><span class="pill med">Med</span></td><td class="num">S</td><td><code>/api/diagnostics</code> plus a button</td></tr>
+        <tr><td>API status codes and versioning</td><td>HTTP 200 for refusals; no version</td><td>4xx/409; <code>/api/v1</code>; OpenAPI</td><td>Scripts can't rely on HTTP status codes</td><td><span class="pill low">Low</span></td><td class="num">M</td><td>Versioned routes with typed responses</td></tr>
+        <tr><td>Database integrity and backup</td><td>None</td><td><code>quick_check</code> at startup; small backup</td><td>A corrupt history is noticed late</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Check at open; keep one backup copy</td></tr>
+        <tr><td>ffmpeg tests skip in CI</td><td>3 tests skip on GitHub runners</td><td>All tests run in CI</td><td>Media command building is checked on this PC only</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Install ffmpeg in the CI jobs</td></tr>
+        <tr><td>First release</td><td>Workflow never run</td><td>A tagged release with the exe attached</td><td>Release path unproven</td><td><span class="pill low">Low</span></td><td class="num">S</td><td>Push tag <code>v3.1.0</code></td></tr>
+        <tr><td>Three UIs, mixed execution</td><td>Web, desktop GUI, script; threads plus async</td><td>One UI; one model</td><td>Features built twice</td><td><span class="pill low">Low</span></td><td class="num">L</td><td>Phase 3 consolidation</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <details class="closed">
+    <summary>Closed by phase 1 (6, plus 1 bug)</summary>
+    <p>Free-space check before imaging; legacy single-tool routes; storage failures hidden in the log; no schema versioning or retention; logs without job ids; no CI, build gate or release automation; and the Python 3.10/3.11 startup break found by CI.</p>
+  </details>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Roadmap</div><h2>From 4.0 to 5.0</h2></div>
+  <div class="roadmap">
+    <div class="phase done-phase">
+      <h3>1. Automation and housekeeping</h3>
+      <p class="phase-meta"><span class="pill ok">Done · 4.0</span> <span class="effort">commit 9156c80</span></p>
+      <ul class="plain">
+        <li class="done">CI, build gate, releases</li>
+        <li class="done">Delete the legacy routes</li>
+        <li class="done">Free-space check</li>
+        <li class="done">Show storage failures</li>
+        <li class="done">Retention and migrations</li>
+        <li class="done">Structured logs</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>2. Frontend and hardening</h3>
+      <p class="phase-meta"><span class="pill conf">Next · about 4.5</span> <span class="effort">3–5 weeks</span></p>
+      <ul class="plain">
+        <li>Split the page and add browser tests</li>
+        <li>Cookie auth and nonce CSP</li>
+        <li>API v1 with proper status codes</li>
+        <li>Diagnostics export</li>
+        <li>Simulated failing disk</li>
+        <li>A real-media run</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>3. Consolidation</h3>
+      <p class="phase-meta"><span class="pill conf">Then · 5.0</span> <span class="effort">4–8 weeks</span></p>
+      <ul class="plain">
+        <li>One UI</li>
+        <li>One execution model</li>
+        <li>Support matrix</li>
+        <li>Benchmarks</li>
+        <li>Coverage and type-check gates</li>
+        <li>Signed releases if you share the exe</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Risk register</div><h2>Top risks now</h2></div>
+  <div class="table-wrap">
+    <table class="risks">
+      <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>A safety fix behaves differently on real failing media than in tests</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>Simulated failing disk plus one supervised run (phase 2)</td></tr>
+        <tr><td>A WSL or usbipd update breaks attach or tool calls</td><td><span class="pill med">Med</span></td><td><span class="pill high">High</span></td><td>Startup version checks (phase 3); the setup check reports tools today</td></tr>
+        <tr><td>XSS in the page reads the API token</td><td><span class="pill low">Low</span></td><td><span class="pill high">High</span></td><td>Output is escaped today; cookie auth and nonce CSP in phase 2</td></tr>
+        <tr><td>Personal data gets committed to the public repo</td><td><span class="pill low">Low</span></td><td><span class="pill med">Med</span></td><td><code>.gitignore</code> covers images, records, <code>.runtime</code> and <code>.env</code>; your HTML pages stay uncommitted</td></tr>
+        <tr class="fixed"><td>Regressions reach main unnoticed; imaging runs out of space; history silently stops</td><td><span class="pill ok">Closed</span></td><td><span class="pill high">High</span></td><td>CI on every push; free-space check; storage warnings</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><div class="eyebrow">Assumptions and open questions</div><h2>What would raise confidence</h2></div>
+  <p>Assumed, as before: one user on one machine, a personal tool, and Windows 11 with WSL2 and an NVIDIA GPU as fixed requirements.</p>
+  <ol class="questions">
+    <li><strong>Can a spare pen drive or scratched disc be used for a supervised run?</strong> It's the single biggest confidence gain left.</li>
+    <li><strong>Should the first release be tagged now?</strong> It would prove the release workflow end to end.</li>
+    <li><strong>Which UI should survive?</strong> That decision unlocks most of phase 3.</li>
+  </ol>
+</section>
+
+<footer>V3 review of commit <span class="mono">9156c80</span>, scored after CI run <span class="mono">40106605543</span> passed on <code>main</code> (163 tests on each of Windows and Linux, Python 3.10 and 3.14). Same eleven dimensions and weights as V1 (3.05) and V2 (3.60). The file is named "Perfect" as requested; the honest score is 4.0, with the path to 5.0 laid out above.</footer>
+
+</div>
+</body>
+</html>
