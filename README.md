@@ -47,7 +47,7 @@ The **CD-Recovery Tool** bridges the low-level hardware control of Windows 11 wi
 | **Video Codec** | HEVC / H.265 (10-bit) | `nvenc_h265_10bit` | Hardware-compressed modern video format |
 | **Audio Codec** | Advanced Audio Coding | AAC (`av_aac`) | Universal stereo/surround audio standard |
 | **Deinterlace Filter** | Comb Detection + Decomb | EEDI2 / Yadif | Motion-adaptive anti-combing for interlaced DVDs |
-| **Documentation** | Markdown + HTML | `README.md`, `docs/` | This README; historical recovery reports in `docs/archive/`, UI theme notes in `docs/design/` |
+| **Documentation** | Markdown + HTML | `README.md`, `docs/` | This README; UI theme notes in `docs/design/` |
 
 ### 2.1 Layered Runtime (`vs_app/`)
 
@@ -226,7 +226,6 @@ VideoStudio-V3/
 ├── .github/workflows/               # ci.yml (Windows + Linux, Python 3.10 and 3.14) and release.yml
 ├── ruff.toml                        # Lint settings (target Python 3.10)
 ├── docs/
-│   ├── archive/                     # Historical reports and logs (not runtime code)
 │   └── design/                      # UI theme notes
 └── .runtime/                        # Created at runtime: api_token, logs/, jobs.db
 ```
